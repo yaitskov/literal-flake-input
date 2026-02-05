@@ -1,0 +1,106 @@
+cabal-version: 3.0
+name:          literal-flake-input
+version:       0.0.1
+
+synopsis:      Web service converting URLs into archived nix attrsets
+description:
+    == Motivation
+    #motivation#
+    
+    == Installation
+    #installation#
+    
+    === NixOS module
+    #nixos-module#
+    
+    == Development environment
+    #development-environment#
+    
+    HLS should be available inside the dev environment.
+    
+    > $ nix develop
+    > $ emacs &
+    > $ cabal build
+    > $ cabal test
+    
+    > $ nix build
+    > $ ./result/bin/literal-flake-input run
+homepage:      http://github.com/yaitskov/literal-flake-input
+license:       BSD-3-Clause
+license-file:  LICENSE
+author:        Daniil Iaitskov
+maintainer:    dyaitskov@gmail.com
+copyright:     Daniil Iaitkov 2026
+category:      System
+build-type:    Simple
+bug-reports:   https://github.com/yaitskov/literal-flake-input/issues
+extra-doc-files:
+  changelog.md
+tested-with:
+  GHC == 9.12.2
+
+source-repository head
+  type:
+    git
+  location:
+    https://github.com/yaitskov/literal-flake-input.git
+
+common base
+  default-language: GHC2024
+  ghc-options: -Wall
+  default-extensions:
+    DefaultSignatures
+    NoImplicitPrelude
+    OverloadedStrings
+    TemplateHaskell
+  build-depends:
+      base >=4.7 && < 5
+    , optparse-applicative < 1
+    , relude >= 1.2.2 && < 2
+    , tagged < 1
+    , unliftio < 1
+    , yesod-core < 1.8
+
+library
+  import: base
+  hs-source-dirs: src
+  exposed-modules:
+    LiteralFlakeInput.App
+    LiteralFlakeInput.CmdArgs
+    LiteralFlakeInput.CmdRun
+    LiteralFlakeInput.Nix
+    LiteralFlakeInput.Page
+    LiteralFlakeInput.Prelude
+  other-modules:
+    Paths_literal_flake_input
+  autogen-modules:
+    Paths_literal_flake_input
+  build-depends:
+    , tar                     < 1
+    , trace-embrace           < 2
+
+test-suite test
+  import: base
+  type: exitcode-stdio-1.0
+  main-is: Driver.hs
+  other-modules:
+    LiteralFlakeInput.Test.Nix
+    Discovery
+  hs-source-dirs:
+    test
+  ghc-options: -Wall -rtsopts -threaded -main-is Driver
+  build-depends:
+    , literal-flake-input
+    , QuickCheck
+    , tasty
+    , tasty-discover
+    , tasty-hunit
+    , tasty-quickcheck
+
+executable literal-flake-input
+  import: base
+  ghc-options: -Wall -threaded -with-rtsopts=-N
+  main-is: LiteralFlakeInput.hs
+  hs-source-dirs: app
+  build-depends:
+    , literal-flake-input
