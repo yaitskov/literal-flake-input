@@ -1,4 +1,6 @@
 /result
+*.pem
+*.csr
 *.aes
 /1
 /niv

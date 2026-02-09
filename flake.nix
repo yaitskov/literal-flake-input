@@ -28,6 +28,7 @@
             ghcid
             cabal-install
             pandoc
+            openssl
             (import uphack { inherit pkgs; })
           ]);
           inputsFrom = map (__getAttr "env") (__attrValues self.packages.${system});

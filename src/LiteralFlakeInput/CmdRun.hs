@@ -4,15 +4,52 @@ module LiteralFlakeInput.CmdRun where
 import Data.Version (showVersion)
 import Paths_literal_flake_input ( version )
 import LiteralFlakeInput.Page ( Ypp(Ypp) )
-import LiteralFlakeInput.CmdArgs ( CmdArgs(..) )
+import LiteralFlakeInput.CmdArgs
+
 import LiteralFlakeInput.Prelude
-    ( ($), Semigroup((<>)), IO, untag, putStrLn, trIo )
-import Yesod.Core ( warp )
+import Yesod.Core
+import Yesod.Core.Types ( Logger )
+import Network.Wai.Handler.WarpTLS ( runTLS, tlsSettings, TLSSettings )
+import Network.Wai.Handler.Warp
+    ( Settings,
+      setOnException,
+      setPort,
+      setServerName,
+      defaultSettings,
+      defaultShouldDisplayException )
+
+import Language.Haskell.TH.Syntax (qLocation)
+import Control.Monad.Logger
+    (  liftLoc, ToLogStr(toLogStr) )
+
+
+mkSettings :: CmdArgs -> Logger -> Settings
+mkSettings ca logger =
+  setPort (untag ca.httpPortToListen) $
+  setServerName "LiteralFlakeInput" $
+  setOnException onEx
+  defaultSettings
+  where
+    shouldLog' = defaultShouldDisplayException
+    onEx _ e =
+      when (shouldLog' e) $
+      messageLoggerSource
+      Ypp
+      logger
+      $(qLocation >>= liftLoc)
+      "yesod-core"
+      LevelError
+      (toLogStr $ "Exception from Warp: " ++ show e)
+
+mkTlsSettings :: Tagged Cert FilePath -> Tagged CertKey FilePath -> TLSSettings
+mkTlsSettings cert key = tlsSettings (untag cert) (untag key)
 
 runCmd :: CmdArgs -> IO ()
 runCmd = \case
-  rs@(RunService {}) -> do
+  rs@RunService {} -> do
     $(trIo "start/rs")
-    warp (untag rs.httpPortToListen) Ypp
+    waiAp <- toWaiApp Ypp
+    logger <- makeLogger Ypp
+    runTLS (mkTlsSettings rs.certFile rs.keyFile) (mkSettings rs logger) waiAp
   LiteralFlakeInputVersion ->
     putStrLn $ "Version " <> showVersion version
