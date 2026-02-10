@@ -137,7 +137,7 @@ nixBuildWithOverride =
 landing :: Handler Html
 landing =
   defaultLayout $ do
-    setTitle "VPN Router"
+    setTitle "Literal Flake Input"
     toWidgetHead
       [hamlet|
              <meta charset="utf-8" />
