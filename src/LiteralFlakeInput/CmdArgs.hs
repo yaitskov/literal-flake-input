@@ -11,8 +11,8 @@ data CertKey
 data CmdArgs
   = RunService
     { httpPortToListen :: Tagged HttpPort Int
-    , certFile :: Tagged Cert FilePath
-    , keyFile :: Tagged CertKey FilePath
+    , certFile :: Maybe (Tagged Cert FilePath)
+    , keyFile :: Maybe (Tagged CertKey FilePath)
     }
   | LiteralFlakeInputVersion
     deriving (Eq, Show)
@@ -42,23 +42,28 @@ portOption = Tagged <$>
     <> metavar "PORT"
   )
 
-certO :: Parser (Tagged Cert FilePath)
-certO = Tagged <$>
+emptyToNothing :: FilePath -> Maybe FilePath
+emptyToNothing "" = Nothing
+emptyToNothing s = Just s
+
+pured :: (Applicative g, Applicative f) => g a -> g (f a)
+pured = fmap pure
+
+certO :: Parser (Maybe (Tagged Cert FilePath))
+certO = pured . emptyToNothing <$>
   strOption
   ( long "certificate"
     <> short 'c'
-    <> showDefault
-    <> value "certificate.pem"
-    <> help "path to SSL certificate file"
+    <> value ""
+    <> help "path to SSL certificate file (./certificate.pem)"
     <> metavar "CERT"
   )
-certKeyO :: Parser (Tagged CertKey FilePath)
-certKeyO = Tagged <$>
+certKeyO :: Parser (Maybe (Tagged CertKey FilePath))
+certKeyO = pured . emptyToNothing <$>
   strOption
   ( long "key"
     <> short 'k'
-    <> showDefault
-    <> value "key.pem"
-    <> help "path to key file of SSL certificate"
+    <> value ""
+    <> help "path to key file of SSL certificate (./key.pem)"
     <> metavar "KEY"
   )

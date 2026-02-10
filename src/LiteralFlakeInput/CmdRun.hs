@@ -48,8 +48,11 @@ runCmd :: CmdArgs -> IO ()
 runCmd = \case
   rs@RunService {} -> do
     $(trIo "start/rs")
-    waiAp <- toWaiApp Ypp
-    logger <- makeLogger Ypp
-    runTLS (mkTlsSettings rs.certFile rs.keyFile) (mkSettings rs logger) waiAp
+    let y = Ypp
+    case liftA2 mkTlsSettings rs.certFile rs.keyFile of
+      Nothing -> warp (untag rs.httpPortToListen) y
+      Just tlsSngs -> do
+        logger <- makeLogger y
+        runTLS tlsSngs (mkSettings rs logger) =<< toWaiApp y
   LiteralFlakeInputVersion ->
     putStrLn $ "Version " <> showVersion version
