@@ -55,6 +55,8 @@ library
   autogen-modules:
     Paths_literal_flake_input
   build-depends:
+    , binary                  < 1
+    , file-embed              < 1
     , tar                     < 1
     , trace-embrace           < 2
     , warp                    < 4
