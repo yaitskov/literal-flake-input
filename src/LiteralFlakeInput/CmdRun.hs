@@ -50,7 +50,9 @@ runCmd = \case
     $(trIo "start/rs")
     let y = Ypp
     case liftA2 mkTlsSettings rs.certFile rs.keyFile of
-      Nothing -> warp (untag rs.httpPortToListen) y
+      Nothing -> do
+        putStrLn $ "http://localhost:" <> show (untag rs.httpPortToListen) <> "/hello/42/prod/true/plugin/null/name/Alice"
+        warp (untag rs.httpPortToListen) y
       Just tlsSngs -> do
         logger <- makeLogger y
         runTLS tlsSngs (mkSettings rs logger) =<< toWaiApp y
