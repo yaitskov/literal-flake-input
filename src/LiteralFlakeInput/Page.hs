@@ -107,19 +107,20 @@ nixFlakeTemplate =
   # ...
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
-    flake-utils.url = "github:numtide/flake-utils";
+    utils.url = "github:numtide/flake-utils";
     c = {
       url = "https://lficom.me/static/false/";
       flake = false;
     };
   };
-  outputs = { self, nixpkgs, flake-utils, c }:
-    flake-utils.lib.eachDefaultSystem (sys:
+  outputs = { self, nixpkgs, utils, c }:
+    utils.lib.eachDefaultSystem (sys:
       let
+        pkgs = nixpkgs.legacyPackages.${sys};
         cnf = import c { inherit pkgs; };
       in
       {
-        packages.${packageName} =
+        packages.hello =
           pkgs.writeShellScriptBin
             "hello"
             "echo Hello ${cnf.name}";
