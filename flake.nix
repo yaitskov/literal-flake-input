@@ -5,12 +5,16 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/bc16855ba53f3cb6851903a393e7073d1b5911e7";
     flake-utils.url = "github:numtide/flake-utils";
+    c = {
+      url = "https://lficom.me/static/false/";
+      flake = false;
+    };
     uphack = {
       url = "github:yaitskov/upload-doc-to-hackage";
       flake = false;
     };
   };
-  outputs = { self, nixpkgs, flake-utils, uphack }:
+  outputs = { self, nixpkgs, flake-utils, uphack, c }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         ghcName = "ghc9122";
@@ -81,9 +85,12 @@
         haskellPackages = pkgs.haskell.packages.${ghcName};
         inherit (pkgs.haskell.lib) dontHaddock;
       in {
-        packages.${packageName} = dontHaddock (haskellPackages.callCabal2nix packageName self rec {});
+        packages.${packageName} =
+          if (import c { inherit pkgs; }).static then
+            mkStatic packageName
+          else
+            dontHaddock (haskellPackages.callCabal2nix packageName self rec {});
         packages.default = self.packages.${system}.${packageName};
-        packages.static = mkStatic packageName;
         defaultPackage = self.packages.${system}.default;
 
         devShells.default = pkgs.mkShell {

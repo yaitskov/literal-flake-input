@@ -1,5 +1,17 @@
 {
   "nodes": {
+    "c": {
+      "flake": false,
+      "locked": {
+        "narHash": "sha256-Wl11amvrTxGqwuYH/uzgPXlPqlnoSRTh9oOeObZ1eUQ=",
+        "type": "file",
+        "url": "https://lficom.me/static/false/"
+      },
+      "original": {
+        "type": "file",
+        "url": "https://lficom.me/static/false/"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -36,6 +48,7 @@
     },
     "root": {
       "inputs": {
+        "c": "c",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
         "uphack": "uphack"
