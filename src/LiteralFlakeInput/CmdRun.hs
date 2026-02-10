@@ -4,17 +4,26 @@ module LiteralFlakeInput.CmdRun where
 import Data.Version (showVersion)
 import Paths_literal_flake_input ( version )
 import LiteralFlakeInput.Page ( Ypp(Ypp) )
-import LiteralFlakeInput.CmdArgs
+import LiteralFlakeInput.CmdArgs ( CmdArgs(..), CertKey, Cert )
 
 import LiteralFlakeInput.Prelude
 import Yesod.Core
+    ( toWaiApp,
+      LogLevel(LevelError),
+      Application,
+      Yesod(makeLogger, messageLoggerSource) )
 import Yesod.Core.Types ( Logger )
 import Network.Wai.Handler.WarpTLS ( runTLS, tlsSettings, TLSSettings )
 import Network.Wai.Handler.Warp
     ( Settings,
+      setBeforeMainLoop,
+      setMaxTotalHeaderLength,
       setOnException,
       setPort,
       setServerName,
+      setSlowlorisSize,
+      setTimeout,
+      runSettings,
       defaultSettings,
       defaultShouldDisplayException )
 
@@ -25,11 +34,18 @@ import Control.Monad.Logger
 
 mkSettings :: CmdArgs -> Logger -> Settings
 mkSettings ca logger =
-  setPort (untag ca.httpPortToListen) $
+  setPort port $
   setServerName "LiteralFlakeInput" $
-  setOnException onEx
+  setOnException onEx $
+  setSlowlorisSize 1024 $
+  setMaxTotalHeaderLength 1024 $
+  setBeforeMainLoop
+  (putStrLn $ "Go http://localhost:" <> show port <> "/hello/42/prod/true/plugin/null/name/Alice") $
+  setTimeout 9
   defaultSettings
+
   where
+    port = untag ca.httpPortToListen
     shouldLog' = defaultShouldDisplayException
     onEx _ e =
       when (shouldLog' e) $
@@ -44,17 +60,17 @@ mkSettings ca logger =
 mkTlsSettings :: Tagged Cert FilePath -> Tagged CertKey FilePath -> TLSSettings
 mkTlsSettings cert key = tlsSettings (untag cert) (untag key)
 
+runPlain :: Settings -> Application -> IO ()
+runPlain = runSettings
+
 runCmd :: CmdArgs -> IO ()
 runCmd = \case
   rs@RunService {} -> do
     $(trIo "start/rs")
     let y = Ypp
+    logger <- makeLogger y
     case liftA2 mkTlsSettings rs.certFile rs.keyFile of
-      Nothing -> do
-        putStrLn $ "http://localhost:" <> show (untag rs.httpPortToListen) <> "/hello/42/prod/true/plugin/null/name/Alice"
-        warp (untag rs.httpPortToListen) y
-      Just tlsSngs -> do
-        logger <- makeLogger y
-        runTLS tlsSngs (mkSettings rs logger) =<< toWaiApp y
+      Nothing -> runPlain (mkSettings rs logger) =<< toWaiApp y
+      Just tlsSngs -> runTLS tlsSngs (mkSettings rs logger) =<< toWaiApp y
   LiteralFlakeInputVersion ->
     putStrLn $ "Version " <> showVersion version
