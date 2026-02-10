@@ -33,12 +33,19 @@ import Yesod.Core
       ToContent(..),
       ContentType )
 
-newtype NixDer = NixDer [(Text, Text)] deriving (Show, Eq)
+data OutFormat =  TaredNix | PlainNix deriving (Show, Eq)
+newtype NixDer (o :: OutFormat)  = NixDer [(Text, Text)] deriving (Show, Eq)
 
-instance ToContent NixDer where
+instance ToContent (NixDer PlainNix) where
+  toContent = toContent . renderNixDer
+
+instance ToContent (NixDer TaredNix) where
   toContent = toContent . mkTar . renderNixDer
 
-instance ToTypedContent NixDer where
+instance ToTypedContent (NixDer PlainNix) where
+  toTypedContent = TypedContent xPlainNix . toContent
+
+instance ToTypedContent (NixDer TaredNix) where
   toTypedContent = TypedContent xTarMime . toContent
 
 pairs :: [a] -> [(a, a)]
@@ -48,6 +55,9 @@ pairs []  = []
 
 xTarMime :: ContentType
 xTarMime = "application/x-tar"
+
+xPlainNix :: ContentType
+xPlainNix = "text/x-nix"
 
 defaultNixName :: TarPath
 defaultNixName =
@@ -61,7 +71,7 @@ mkTar txt = write [e]
     e = fileEntry defaultNixName $ encodeUtf8 txt
 
 {- HLINT ignore "Use concatMap" -}
-renderNixDer :: NixDer -> LText
+renderNixDer :: NixDer o -> LText
 renderNixDer (NixDer m) =
   "{...}:{" <> concat (uncurry renderEntry <$> m) <> "}"
 
@@ -76,5 +86,5 @@ renderEntry k v = toLazy k <> "=" <> tryToQuote v <> ";"
     isKeyword = (`elem` ["null", "true", "false"])
     isNumber x = all isDigit x && not (null x)
 
-translate :: [Text] -> NixDer
+translate :: [Text] -> NixDer o
 translate = NixDer . pairs
