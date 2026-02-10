@@ -9,10 +9,11 @@ import Data.ByteString qualified as BS
 import Data.FileEmbed ( embedFile, makeRelativeToProject )
 import Data.Text (isSuffixOf)
 import LiteralFlakeInput.Nix
-    ( translate, OutFormat(PlainNix, TaredNix) )
+    ( translate, OutFormat(PlainNix, TaredNix), NixDer(..))
 import LiteralFlakeInput.Prelude
 import Yesod.Core
     ( Yesod(defaultLayout, makeSessionBackend),
+      notFound,
       RenderRoute(renderRoute),
       ToTypedContent(..),
       TypedContent(TypedContent),
@@ -30,7 +31,9 @@ import Yesod.Core
       hamlet,
       lucius,
       whamlet,
-      typeSvg )
+      typeXml,
+      typePlain,
+      typeSvg, notFound )
 
 data Ypp = Ypp
 
@@ -59,17 +62,32 @@ instance ToTypedContent FavIcon where
 getFavIcon :: Handler FavIcon
 getFavIcon = pure $ FavIcon $(makeRelativeToProject "assets/favicon.svg" >>= embedFile)
 
+getSiteMap :: Handler TypedContent
+getSiteMap = pure . TypedContent typeXml $ toContent $(makeRelativeToProject "assets/sitemap.xml" >>= embedFile)
+
+getRobots :: Handler TypedContent
+getRobots = pure . TypedContent typePlain $ toContent $(makeRelativeToProject "assets/robots.txt" >>= embedFile)
+
 getHomeR :: Texts -> Handler Contentable
-getHomeR params = do
-  $(logInfo) $ "Translate " <> show params
+getHomeR params =
   case nonEmpty params of
     Nothing -> Contentable <$> landing
+    Just (p :| []) ->
+      case p of
+        "favicon.svg" -> Contentable <$> getFavIcon
+        "robots.txt" ->  Contentable <$> getRobots
+        "sitemap.xml" -> Contentable <$> getSiteMap
+        "index.html" ->  Contentable <$> landing
+        _ -> notFound
     Just p | ".tar" `isSuffixOf` last p ->
-               addContentDispositionFileName "file.tar" $> Contentable (translate @TaredNix params)
-           | p == pure "favicon.svg" ->
-               Contentable <$> getFavIcon
+               trans (Proxy @TaredNix) "file.tar"
            | otherwise ->
-               addContentDispositionFileName "default.nix" $> Contentable (translate @PlainNix params)
+               trans (Proxy @PlainNix) "default.nix"
+  where
+    trans :: forall tw. ToTypedContent (NixDer tw) => Proxy tw -> Text -> Handler Contentable
+    trans _ fileName = do
+      $(logInfo) $ "Translate " <> show params
+      addContentDispositionFileName fileName $> Contentable (translate params :: NixDer tw)
 
 generatedNixExpr :: Text
 generatedNixExpr =
