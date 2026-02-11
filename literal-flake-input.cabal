@@ -6,23 +6,23 @@ synopsis:      Web service converting URLs into archived nix attrsets
 description:
     == Motivation
     #motivation#
-    
+
     == Installation
     #installation#
-    
+
     === NixOS module
     #nixos-module#
-    
+
     == Development environment
     #development-environment#
-    
+
     HLS should be available inside the dev environment.
-    
+
     > $ nix develop
     > $ emacs &
     > $ cabal build
     > $ cabal test
-    
+
     > $ nix build
     > $ ./result/bin/literal-flake-input run
 homepage:      http://github.com/yaitskov/literal-flake-input
@@ -77,6 +77,8 @@ library
     Paths_literal_flake_input
   build-depends:
     , binary                  < 1
+    , ekg-wai                 < 1
+    , ekg-core                < 1
     , file-embed              < 1
     , tar                     < 1
     , trace-embrace           < 2
@@ -105,7 +107,7 @@ test-suite test
 
 executable literal-flake-input
   import: base
-  ghc-options: -Wall -threaded -with-rtsopts=-N
+  ghc-options: -Wall -threaded "-with-rtsopts=-T -N"
   main-is: LiteralFlakeInput.hs
   hs-source-dirs: app
   build-depends:

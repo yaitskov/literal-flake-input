@@ -30,7 +30,7 @@ import Network.Wai.Handler.Warp
 import Language.Haskell.TH.Syntax (qLocation)
 import Control.Monad.Logger
     (  liftLoc, ToLogStr(toLogStr) )
-
+import System.Remote.Monitoring.Wai (forkServer)
 
 mkSettings :: CmdArgs -> Logger -> Settings
 mkSettings ca logger =
@@ -66,6 +66,10 @@ runPlain = runSettings
 runCmd :: CmdArgs -> IO ()
 runCmd = \case
   rs@RunService {} -> do
+    forM_ rs.ekgPort $ \(Tagged ep) -> do
+      putStrLn $ "Launch EKG on port " <> show ep
+      forkServer "0.0.0.0" ep
+
     $(trIo "start/rs")
     let y = Ypp
     logger <- makeLogger y
