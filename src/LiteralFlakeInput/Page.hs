@@ -13,9 +13,11 @@ import LiteralFlakeInput.Nix
     ( translate, OutFormat(PlainNix, TaredNix), NixDer(..))
 import LiteralFlakeInput.Prelude
 import Paths_literal_flake_input ( version )
+import System.Metrics ( Store )
 import Yesod.Core
     ( Yesod(defaultLayout, makeSessionBackend),
       notFound,
+      getYesod,
       RenderRoute(renderRoute),
       ToTypedContent(..),
       TypedContent(TypedContent),
@@ -37,7 +39,19 @@ import Yesod.Core
       typePlain,
       typeSvg, notFound )
 
-data Ypp = Ypp
+import System.Metrics.Counter ( Counter, inc )
+
+data YppMetrics
+  = YppMetrics
+  { landingPage :: Counter
+  , apiCall :: Counter
+  }
+
+data Ypp
+  = Ypp
+    { metricsStore :: Store
+    , yppMetrics :: YppMetrics
+    }
 
 mkYesod "Ypp" [parseRoutes|
 /*{Texts} HomeR GET
@@ -98,6 +112,8 @@ getHomeR params =
   where
     trans :: forall tw. ToTypedContent (NixDer tw) => Proxy tw -> Text -> Handler Contentable
     trans _ fileName = do
+      yp <- getYesod
+      liftIO (inc $ apiCall $ yppMetrics yp)
       $(logInfo) $ "Translate " <> show params
       addContentDispositionFileName fileName $> Contentable (translate params :: NixDer tw)
 
@@ -177,7 +193,9 @@ nixBuildWithOverride =
   """
 
 landing :: Handler Html
-landing =
+landing = do
+  yp <- getYesod
+  liftIO (inc $ landingPage $ yppMetrics yp)
   defaultLayout $ do
     setTitle "Literal Flake Input"
     toWidgetHead
