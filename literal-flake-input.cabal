@@ -79,6 +79,10 @@ library
     , binary                  < 1
     , ekg-wai                 < 1
     , ekg-core                < 1
+    -- , hnix-store-core
+    -- , hnix-store-nar
+    -- , hnix-store-remote
+    , hnix                    < 1
     , file-embed              < 1
     , tar                     < 1
     , trace-embrace           < 2

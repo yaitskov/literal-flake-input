@@ -30,6 +30,84 @@
         "type": "github"
       }
     },
+    "hnix": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1770837275,
+        "narHash": "sha256-Je3g+WCynS4jkyw0sj4PXNzZYdo0t4kbw60WeiJ0EVY=",
+        "path": "/home/don/pro/haskell/hnix2/hnix",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/don/pro/haskell/hnix2/hnix",
+        "type": "path"
+      }
+    },
+    "hnix-store-core": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1770830768,
+        "narHash": "sha256-zE1xbgKPM1tQQ3OXwSjZFAdEAaI0/eddffcCTcWmzuY=",
+        "path": "/home/don/pro/haskell/hnix-store/hnix-store-core",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/don/pro/haskell/hnix-store/hnix-store-core",
+        "type": "path"
+      }
+    },
+    "hnix-store-json": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1770834876,
+        "narHash": "sha256-P4HYFYwylJxoSiz9Qc15ZzKnx7c9Nfxa5eUFZ/5oc+g=",
+        "path": "/home/don/pro/haskell/hnix-store/hnix-store-json",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/don/pro/haskell/hnix-store/hnix-store-json",
+        "type": "path"
+      }
+    },
+    "hnix-store-nar": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1770832217,
+        "narHash": "sha256-d6/fzj7yav0RHpZVhgU5xxjKAKasr2KIKVIZkDXraUc=",
+        "path": "/home/don/pro/haskell/hnix-store/hnix-store-nar",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/don/pro/haskell/hnix-store/hnix-store-nar",
+        "type": "path"
+      }
+    },
+    "hnix-store-remote": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1770830768,
+        "narHash": "sha256-8Jl+2gQpH0AIYPriSfTF8m2rKRRYaQ69sVuKmuUULrw=",
+        "path": "/home/don/pro/haskell/hnix-store/hnix-store-remote",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/don/pro/haskell/hnix-store/hnix-store-remote",
+        "type": "path"
+      }
+    },
+    "hnix-store-tests": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1770830768,
+        "narHash": "sha256-f/Uj0+yVcjZGEOkzJ8ViQCmmEwISSFQkQAokDDHwgdY=",
+        "path": "/home/don/pro/haskell/hnix-store/hnix-store-tests",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/don/pro/haskell/hnix-store/hnix-store-tests",
+        "type": "path"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1770195405,
@@ -50,6 +128,12 @@
       "inputs": {
         "c": "c",
         "flake-utils": "flake-utils",
+        "hnix": "hnix",
+        "hnix-store-core": "hnix-store-core",
+        "hnix-store-json": "hnix-store-json",
+        "hnix-store-nar": "hnix-store-nar",
+        "hnix-store-remote": "hnix-store-remote",
+        "hnix-store-tests": "hnix-store-tests",
         "nixpkgs": "nixpkgs",
         "uphack": "uphack"
       }
