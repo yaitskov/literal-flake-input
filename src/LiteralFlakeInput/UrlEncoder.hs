@@ -46,6 +46,7 @@ runUrlEncoderWith args
       Nix values are verified with hnix interpreter.
 
       URL prefix can be overriden via environment variable LFI_SITE.
+      If you copy URL into flake file as a default value then drop tar suffix.
 
       Project home page https://github.com/yaitskov/literal-flake-input"""
     exitFailure

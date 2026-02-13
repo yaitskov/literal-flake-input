@@ -1,16 +1,99 @@
 # literal-flake-input
 
+Service translates an HTTP GET path into a nix derivation
+that can be used as a flake input. Such a workaround provides
+the ability to emulate command line arguments in nix flakes.
 
-## Motivation
+In addtition to the web service there is a command line tool **e**
+(stands for escape/encode). The e helps with URL encoding.
 
 ## Installation
 
-### NixOS module
+### Service
+The service is already deployed at [lficom.me](https://lficom.me)
 
+### NixOS module
+TODO
+
+## How to use
+The project flake is using
+[itself](https://github.com/yaitskov/literal-flake-input/blob/4342efaa6d4a74143b235f40873bd72f13c02cd3/flake.nix#L8).
+Another project using lfi is
+[vpn-router](https://github.com/yaitskov/vpn-router).
+
+### Flake template
+
+``` nix
+  # ...
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs";
+    utils.url = "github:numtide/flake-utils";
+    c = {
+      url = "https://lficom.me/name/Bill/";
+      flake = false;
+    };
+  };
+  outputs = { self, nixpkgs, utils, c }:
+    utils.lib.eachDefaultSystem (sys:
+      let
+        pkgs = nixpkgs.legacyPackages.${sys};
+        cnf = import c { inherit pkgs; };
+      in
+      {
+        packages.hello =
+          pkgs.writeShellScriptBin
+            "hello"
+            "echo Hello ${cnf.name}";
+      });
+  # ...
+```
+
+### Overriding default values
+
+``` shell
+nix build --override-input c \
+  https://lficom.me/name/Bob/.tar
+```
+
+Commant line tool **e** helps with boilerplates:
+
+``` shell
+nix build $(e -name Bob)
+```
+
+The tool supports literal keyword values (e.g. `true` and `null`),
+strings, numbers, arrays and attribute sets.  String quotation is
+optional. All values are parsed and evaluated by **e** with nix to catch typos
+as soon as possible.
+
+
+``` shell
+nix build $(e -an1 true \
+              -an2 null \
+              -an3 12 \
+              -an4 hello world \
+              -an5 [ 1 2 ] \
+              -an6 "{x = 1; y = 2; }" \
+              -an7 x: x + 1)
+```
+
+The above command generates an input link which is going to be resolved
+by the service into:
+
+``` nix
+{...}: {
+  an1 = true;
+  an2 = null;
+  an3 = 12;
+  an4 = "hello wolrd";
+  an5 = [1 2];
+  an6 = {x = 1; y = 2; };
+  an7 = x: x + 1;
+}
+
+```
 
 ## Development environment
-
-HLS should be available inside the dev environment.
 
 ```shell
 $ nix develop
@@ -22,4 +105,5 @@ $ cabal test
 ```shell
 $ nix build
 $ ./result/bin/literal-flake-input run
+$ nix build $(./result/bin/e -static true)
 ```

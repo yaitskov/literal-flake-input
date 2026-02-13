@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name:          literal-flake-input
-version:       0.0.3
+version:       0.0.4
 
 synopsis:      Web service converting URLs into archived nix attrsets
 description:
