@@ -6,6 +6,7 @@ import Data.Map.Strict qualified as M
 import Data.Text qualified as T
 import Data.Time.Clock ( getCurrentTime )
 import Data.Version (showVersion)
+import LiteralFlakeInput.Nix ( quoteUnquotedString )
 import LiteralFlakeInput.Prelude
 import Network.HTTP.Types (encodePathSegments)
 import Nix
@@ -19,7 +20,6 @@ import Paths_literal_flake_input ( version )
 import System.Environment.Blank (getEnvDefault)
 import Text.PrettyPrint.Leijen.Text (linebreak, text, putDoc, vcat, indent)
 import Text.Regex.TDFA ( (=~) )
-
 
 runUrlEncoder :: IO ()
 runUrlEncoder = runUrlEncoderWith . fmap toText =<< getArgs
@@ -103,18 +103,6 @@ groupByAttrName (atrN:argsLeft)
 joinArgValueWords :: NonEmpty Text -> Text
 joinArgValueWords =  unwords . NL.toList
 
-isUnquotedString :: Text -> Bool
-isUnquotedString s
-  | s =~ ("^(true|false|null|-?[0-9]+([.][0-9]+)?|\".*\"|[[].*|[{].*|[a-zA-Z_][a-zA-Z0-9_-]*[a-zA-Z0-9_]*:.*)$" :: Text) = False
-  | otherwise = True
-
-quoteString :: Text -> Text
-quoteString = show
-
-quoteUnquotedString :: Text -> Text
-quoteUnquotedString s
-  | isUnquotedString s = quoteString s
-  | otherwise = s
 
 validateNixExpr :: Options -> Text -> IO (Either Text ())
 validateNixExpr o nxe =

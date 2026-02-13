@@ -3,10 +3,9 @@ module LiteralFlakeInput.Nix where
 import Data.Text.Lazy ( concat )
 import Codec.Archive.Tar ( write )
 import Codec.Archive.Tar.Entry ( fileEntry, toTarPath, TarPath )
-import Data.Char ( isDigit )
-import Data.Text ( all, null )
 import LiteralFlakeInput.Prelude
     ( otherwise,
+      show,
       ($),
       (<$>),
       Eq,
@@ -19,14 +18,12 @@ import LiteralFlakeInput.Prelude
       uncurry,
       (.),
       LText,
-      (&&),
-      not,
-      (||),
       error,
-      elem,
       ConvertUtf8(encodeUtf8),
       LByteString,
+      Bool(True),
       ToText(toText) )
+import Text.Regex.TDFA ( (=~) )
 import Yesod.Core
     ( ToTypedContent(..),
       TypedContent(TypedContent),
@@ -75,16 +72,21 @@ renderNixDer :: NixDer o -> LText
 renderNixDer (NixDer m) =
   "{...}:{" <> concat (uncurry renderEntry <$> m) <> "}"
 
-renderEntry :: Text -> Text -> LText
-renderEntry k v = toLazy k <> "=" <> tryToQuote v <> ";"
-  where
-    tryToQuote x
-      | notNeedQuotes x = toLazy x
-      | otherwise = "\"" <> toLazy x <> "\""
+isUnquotedString :: Text -> Bool
+isUnquotedString s
+  | s =~ ("^(true|false|null|-?[0-9]+([.][0-9]+)?|\".*\"|[[].*|[{].*|[a-zA-Z_][a-zA-Z0-9_-]*[a-zA-Z0-9_]*:.*)$" :: Text) = False
+  | otherwise = True
 
-    notNeedQuotes x = isKeyword x || isNumber x
-    isKeyword = (`elem` ["null", "true", "false"])
-    isNumber x = all isDigit x && not (null x)
+quoteString :: Text -> Text
+quoteString = show
+
+quoteUnquotedString :: Text -> Text
+quoteUnquotedString s
+  | isUnquotedString s = quoteString s
+  | otherwise = s
+
+renderEntry :: Text -> Text -> LText
+renderEntry k v = toLazy k <> "=" <> toLazy (quoteUnquotedString v) <> ";"
 
 translate :: [Text] -> NixDer o
 translate = NixDer . pairs
