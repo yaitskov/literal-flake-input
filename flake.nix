@@ -1,7 +1,7 @@
 # nix develop --profile .ndc --command true
 # nix develop ./.ndc
 {
-  description = "VPN bypass";
+  description = "Literal Flake Inputs";
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/bc16855ba53f3cb6851903a393e7073d1b5911e7";
     flake-utils.url = "github:numtide/flake-utils";
@@ -34,7 +34,6 @@
       flake = false;
     };
     hnix = {
-      # url = "github:tm-drtina/hnix/tomas/remove-cryptonite-hashing";
       url = "path:/home/don/pro/haskell/hnix2/hnix";
       flake = false;
     };
@@ -44,102 +43,82 @@
       let
         ghcName = "ghc9122";
         packageName = "literal-flake-input";
-        # mkStatic = pkName:
-        #   let
-        #     pkgs = import nixpkgs {
-        #       inherit system;
-        #       crossSystem = "x86_64-unknown-linux-musl";
-        #       overlays = [
-        #         (final: prev: {
-        #           haskell = prev.haskell // {
-        #             # hnix = final.callCabal2nix "hnix" inputs.hnix { };
-
-        #             compiler = prev.haskell.compiler // {
-        #               ${ghcName} = prev.haskell.compiler.${ghcName}.override {
-        #                 enableRelocatedStaticLibs = true;
-        #                 enableShared = false;
-        #                 enableDwarf = false;
-        #               };
-        #             };
-        #           };
-        #         })
-        #       ];
-        #     };
-        #     staticExtraLibs = [
-        #       "--ghc-option=-optl=-static"
-        #       "--extra-lib-dirs=${pkgs.gmp6.override { withStatic = true; }}/lib"
-        #       "--extra-lib-dirs=${pkgs.numactl.overrideAttrs (old: { dontDisableStatic = true; })}/lib"
-        #       "--extra-lib-dirs=${pkgs.zlib.static}/lib"
-        #       "--extra-lib-dirs=${pkgs.libelf.overrideAttrs (old: { dontDisableStatic = true; })}/lib"
-        #       "--extra-lib-dirs=${pkgs.libffi.overrideAttrs (old: { dontDisableStatic = true; })}/lib"
-        #     ];
-
-        #     compressElf = drv:
-        #       drv.overrideAttrs(oa: {
-        #         postInstall = (oa.postInstall or "") + ''
-        #           ${pkgs.upx}/bin/upx -9 $out/bin/literal-flake-input
-        #         '';
-        #       });
-
-        #     assertStatic = drv:
-        #       drv.overrideAttrs(oa: {
-        #         postInstall = (oa.postInstall or "") + ''
-        #           for b in $out/bin/*
-        #           do
-        #             if ldd "$b"
-        #             then
-        #               echo "ldd succeeded on $b, which may mean that it is not statically linked"
-        #               exit 1
-        #             fi
-        #           done
-        #         '';});
-
-        #     makeStatic = drv:
-        #       drv.overrideAttrs(oa:
-        #         { configureFlags = (oa.configureFlags or []) ++ staticExtraLibs; });
-
-          #   haskellPackagesO = pkgs.haskell.packages.${ghcName};
-          #   inherit (pkgs.haskell.lib) dontCheck justStaticExecutables;
-          #   haskellPackages = haskellPackagesO.override {
-          #     overrides = final: prev: {
-          #       vector = dontCheck prev.vector;
-          #     };
-          #   };
-          # in
-          #   assertStatic (compressElf (assertStatic (makeStatic (justStaticExecutables
-          #     (haskellPackages.callCabal2nix pkName self rec {})))));
-        # pkgs = import nixpkgs {
-        #   inherit system;
-        #   overlays = [
-        #     (final: prev: {
-        #       haskell = prev.haskell // {
-        #         hnix2 = final.callCabal2nix "hnix2" inputs.hnix2 { };
-        #       };
-        #     })
-        #   ];
-        # };
-
-        pkgs = nixpkgs.legacyPackages.${system};
-        haskellPackages = pkgs.haskell.packages.${ghcName}.extend(final: prev: rec {
-        # inherit (pkgs.haskell.lib) dontCheck justStaticExecutables;
-          # haskellPackages = haskellPackagesO.override {
-          # overrides = final: prev: {
+        hnix-overlay = final: prev: {
           hnix-store-json = dontCheck (final.callCabal2nix "hnix-store-json" inputs.hnix-store-json { });
           hnix-store-tests = final.callCabal2nix "hnix-store-tests" inputs.hnix-store-tests { };
           hnix-store-nar = final.callCabal2nix "hnix-store-nar" inputs.hnix-store-nar { };
           hnix-store-core = final.callCabal2nix "hnix-store-core" inputs.hnix-store-core { };
           hnix-store-remote = dontHaddock (final.callCabal2nix "hnix-store-remote" inputs.hnix-store-remote { });
           hnix = dontCheck (final.callCabal2nix "hnix" inputs.hnix { });
-        });
-    #};
+        };
+        mkStatic = pkName:
+          let
+            pkgs = import nixpkgs {
+              inherit system;
+              crossSystem = "x86_64-unknown-linux-musl";
+              overlays = [
+                (final: prev: {
+                  haskell = prev.haskell // {
+                    compiler = prev.haskell.compiler // {
+                      ${ghcName} = prev.haskell.compiler.${ghcName}.override {
+                        enableRelocatedStaticLibs = true;
+                        enableShared = false;
+                        enableDwarf = false;
+                      };
+                    };
+                  };
+                })
+              ];
+            };
+            staticExtraLibs = [
+              "--ghc-option=-optl=-static"
+              "--extra-lib-dirs=${pkgs.gmp6.override { withStatic = true; }}/lib"
+              "--extra-lib-dirs=${pkgs.numactl.overrideAttrs (old: { dontDisableStatic = true; })}/lib"
+              "--extra-lib-dirs=${pkgs.zlib.static}/lib"
+              "--extra-lib-dirs=${pkgs.libelf.overrideAttrs (old: { dontDisableStatic = true; })}/lib"
+              "--extra-lib-dirs=${pkgs.libffi.overrideAttrs (old: { dontDisableStatic = true; })}/lib"
+            ];
 
-        # haskellPackages = pkgs.haskell.packages.${ghcName};
-        # haskellPackages = haskellPackagesO.override {
-        #   overrides = hself: hsuper: {
-        #     hnix = hself.callCabal2nix "hnix" inputs.hnix { };
-        #   };
-        # };
+            compressElf = drv:
+              drv.overrideAttrs(oa: {
+                postInstall = (oa.postInstall or "") + ''
+                  ${pkgs.upx}/bin/upx -9 $out/bin/literal-flake-input
+                '';
+              });
+
+            assertStatic = drv:
+              drv.overrideAttrs(oa: {
+                postInstall = (oa.postInstall or "") + ''
+                  for b in $out/bin/*
+                  do
+                    if ldd "$b"
+                    then
+                      echo "ldd succeeded on $b, which may mean that it is not statically linked"
+                      exit 1
+                    fi
+                  done
+                '';});
+
+            makeStatic = drv:
+              drv.overrideAttrs(oa:
+                { configureFlags = (oa.configureFlags or []) ++ staticExtraLibs; });
+
+            haskellPackagesO = pkgs.haskell.packages.${ghcName};
+            inherit (pkgs.haskell.lib) dontCheck justStaticExecutables;
+            haskellPackages = haskellPackagesO.override (old:
+              {
+                overrides = builtins.foldl' pkgs.lib.composeExtensions (old.overrides or (_: _: { }))
+                  [ (final: prev: { vector = dontCheck prev.vector; })
+                    hnix-overlay
+                  ];
+              });
+          in
+            assertStatic (compressElf (assertStatic (makeStatic (justStaticExecutables
+              (haskellPackages.callCabal2nix pkName self rec {})))));
+        ## dynamic
+        pkgs = nixpkgs.legacyPackages.${system};
         inherit (pkgs.haskell.lib) dontHaddock dontCheck;
+        haskellPackages = pkgs.haskell.packages.${ghcName}.extend(hnix-overlay);
       in {
         # haskellProjects.default = {
         #   packages = {
@@ -147,9 +126,9 @@
         #   };
         # };
         packages.${packageName} =
-          # if (import c { inherit pkgs; }).static then
-          #   mkStatic packageName
-          # else
+          if (import c { inherit pkgs; }).static then
+            mkStatic packageName
+          else
             dontHaddock (haskellPackages.callCabal2nix packageName self rec {});
         packages.default = self.packages.${system}.${packageName};
         defaultPackage = self.packages.${system}.default;
