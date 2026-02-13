@@ -13,7 +13,51 @@ In addtition to the web service there is a command line tool **e**
 The service is already deployed at [lficom.me](https://lficom.me)
 
 ### NixOS module
-TODO
+
+#### NixOS with flakes
+
+Modify `/etc/nixos/flake.nix` as follows:
+
+``` nix
+  # ...
+  inputs = {
+    # ...
+    literal-flake-input.url = "github:yaitskov/literal-flake-input";
+  };
+```
+``` nix
+  # ...
+        modules = [
+          literal-flake-input.nixosModules.${system}.default
+          ({ ... }: {
+            programs.literal-flake-input {
+              enable = true;
+              port = 3000;
+          })
+          ./configuration.nix
+        ];
+```
+
+#### NixOS without flakes
+``` nix
+  let
+    lfi = builtins.fetchGit "htts://github.com/yaitskov/literal-flake-input.git?ref=master";
+  in {
+  imports =
+    [ # ... ./hardware-configuration.nix
+      "${lfi}/nixos/non-flake-lfi.nix"
+    ];
+
+```
+
+``` nix
+  programs = {
+    literal-flake-input = {
+      port = 3000;
+      enable = true;
+    };
+  };
+```
 
 ## How to use
 The project flake is using

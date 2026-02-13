@@ -139,5 +139,7 @@
           '';
         };
         devShell = self.devShells.${system}.default;
+
+        nixosModules.default = import ./nixos/flake-lfi.nix (self.packages.${system}.${packageName});
       });
 }

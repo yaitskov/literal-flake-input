@@ -22,7 +22,45 @@ description:
     === NixOS module
     #nixos-module#
     
-    TODO
+    ==== NixOS with flakes
+    #nixos-with-flakes#
+    
+    Modify @\/etc\/nixos\/flake.nix@ as follows:
+    
+    >   # ...
+    >   inputs = {
+    >     # ...
+    >     literal-flake-input.url = "github:yaitskov/literal-flake-input";
+    >   };
+    
+    >   # ...
+    >         modules = [
+    >           literal-flake-input.nixosModules.${system}.default
+    >           ({ ... }: {
+    >             programs.literal-flake-input {
+    >               enable = true;
+    >               port = 3000;
+    >           })
+    >           ./configuration.nix
+    >         ];
+    
+    ==== NixOS without flakes
+    #nixos-without-flakes#
+    
+    >   let
+    >     lfi = builtins.fetchGit "htts://github.com/yaitskov/literal-flake-input.git?ref=master";
+    >   in {
+    >   imports =
+    >     [ # ... ./hardware-configuration.nix
+    >       "${lfi}/nixos/non-flake-lfi.nix"
+    >     ];
+    
+    >   programs = {
+    >     literal-flake-input = {
+    >       port = 3000;
+    >       enable = true;
+    >     };
+    >   };
     
     == How to use
     #how-to-use#
