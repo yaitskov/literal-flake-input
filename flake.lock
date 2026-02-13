@@ -33,79 +33,37 @@
     "hnix": {
       "flake": false,
       "locked": {
-        "lastModified": 1770928060,
-        "narHash": "sha256-l7R0vddBDmnMg8RgakvcWCTMJQyZplSnYT8GpUn3ZOo=",
-        "path": "/home/don/pro/haskell/hnix2/hnix",
-        "type": "path"
+        "lastModified": 1770925770,
+        "narHash": "sha256-TKrCmRafhyjftPeVj/Y9cyWNsCPAayJdvmjxsePoIaU=",
+        "owner": "yaitskov",
+        "repo": "hnix",
+        "rev": "d893dccb3e3ffe17f2e3b331ef10680a4c2feb59",
+        "type": "github"
       },
       "original": {
-        "path": "/home/don/pro/haskell/hnix2/hnix",
-        "type": "path"
+        "owner": "yaitskov",
+        "ref": "rip-crytonite",
+        "repo": "hnix",
+        "type": "github"
       }
     },
-    "hnix-store-core": {
+    "hnix-store": {
       "flake": false,
       "locked": {
-        "lastModified": 1770830768,
-        "narHash": "sha256-zE1xbgKPM1tQQ3OXwSjZFAdEAaI0/eddffcCTcWmzuY=",
-        "path": "/home/don/pro/haskell/hnix-store/hnix-store-core",
-        "type": "path"
+        "lastModified": 1770835349,
+        "narHash": "sha256-++9g8bZUAbuvpRkAxhT6s6VPs3HQapl/beEoZ3HBI0s=",
+        "ref": "cryptonite-ghost",
+        "rev": "70f1645ef2032dca5440020090a4f5bcc4dae8ce",
+        "revCount": 867,
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/yaitskov/hnix-store.git"
       },
       "original": {
-        "path": "/home/don/pro/haskell/hnix-store/hnix-store-core",
-        "type": "path"
-      }
-    },
-    "hnix-store-json": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1770834876,
-        "narHash": "sha256-P4HYFYwylJxoSiz9Qc15ZzKnx7c9Nfxa5eUFZ/5oc+g=",
-        "path": "/home/don/pro/haskell/hnix-store/hnix-store-json",
-        "type": "path"
-      },
-      "original": {
-        "path": "/home/don/pro/haskell/hnix-store/hnix-store-json",
-        "type": "path"
-      }
-    },
-    "hnix-store-nar": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1770832217,
-        "narHash": "sha256-d6/fzj7yav0RHpZVhgU5xxjKAKasr2KIKVIZkDXraUc=",
-        "path": "/home/don/pro/haskell/hnix-store/hnix-store-nar",
-        "type": "path"
-      },
-      "original": {
-        "path": "/home/don/pro/haskell/hnix-store/hnix-store-nar",
-        "type": "path"
-      }
-    },
-    "hnix-store-remote": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1770830768,
-        "narHash": "sha256-8Jl+2gQpH0AIYPriSfTF8m2rKRRYaQ69sVuKmuUULrw=",
-        "path": "/home/don/pro/haskell/hnix-store/hnix-store-remote",
-        "type": "path"
-      },
-      "original": {
-        "path": "/home/don/pro/haskell/hnix-store/hnix-store-remote",
-        "type": "path"
-      }
-    },
-    "hnix-store-tests": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1770830768,
-        "narHash": "sha256-f/Uj0+yVcjZGEOkzJ8ViQCmmEwISSFQkQAokDDHwgdY=",
-        "path": "/home/don/pro/haskell/hnix-store/hnix-store-tests",
-        "type": "path"
-      },
-      "original": {
-        "path": "/home/don/pro/haskell/hnix-store/hnix-store-tests",
-        "type": "path"
+        "ref": "cryptonite-ghost",
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/yaitskov/hnix-store.git"
       }
     },
     "nixpkgs": {
@@ -129,11 +87,7 @@
         "c": "c",
         "flake-utils": "flake-utils",
         "hnix": "hnix",
-        "hnix-store-core": "hnix-store-core",
-        "hnix-store-json": "hnix-store-json",
-        "hnix-store-nar": "hnix-store-nar",
-        "hnix-store-remote": "hnix-store-remote",
-        "hnix-store-tests": "hnix-store-tests",
+        "hnix-store": "hnix-store",
         "nixpkgs": "nixpkgs",
         "uphack": "uphack"
       }

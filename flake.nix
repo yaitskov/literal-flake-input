@@ -13,28 +13,12 @@
       url = "github:yaitskov/upload-doc-to-hackage";
       flake = false;
     };
-    hnix-store-json  = {
-      url = "path:/home/don/pro/haskell/hnix-store/hnix-store-json";
-      flake = false;
-    };
-    hnix-store-tests  = {
-      url = "path:/home/don/pro/haskell/hnix-store/hnix-store-tests";
-      flake = false;
-    };
-    hnix-store-core = {
-      url = "path:/home/don/pro/haskell/hnix-store/hnix-store-core";
-      flake = false;
-    };
-    hnix-store-nar = {
-      url = "path:/home/don/pro/haskell/hnix-store/hnix-store-nar";
-      flake = false;
-    };
-    hnix-store-remote = {
-      url = "path:/home/don/pro/haskell/hnix-store/hnix-store-remote";
+    hnix-store = {
+      url = "git+https://github.com/yaitskov/hnix-store.git?ref=cryptonite-ghost&submodules=1";
       flake = false;
     };
     hnix = {
-      url = "path:/home/don/pro/haskell/hnix2/hnix";
+      url = "github:yaitskov/hnix/rip-crytonite";
       flake = false;
     };
   };
@@ -44,11 +28,18 @@
         ghcName = "ghc9122";
         packageName = "literal-flake-input";
         hnix-overlay = final: prev: {
-          hnix-store-json = dontCheck (final.callCabal2nix "hnix-store-json" inputs.hnix-store-json { });
-          hnix-store-tests = final.callCabal2nix "hnix-store-tests" inputs.hnix-store-tests { };
-          hnix-store-nar = final.callCabal2nix "hnix-store-nar" inputs.hnix-store-nar { };
-          hnix-store-core = final.callCabal2nix "hnix-store-core" inputs.hnix-store-core { };
-          hnix-store-remote = dontHaddock (final.callCabal2nix "hnix-store-remote" inputs.hnix-store-remote { });
+          hnix-store-json =
+            dontCheck
+              (final.callCabal2nix "hnix-store-json" "${inputs.hnix-store}/hnix-store-json" { });
+          hnix-store-tests =
+            final.callCabal2nix "hnix-store-tests" "${inputs.hnix-store}/hnix-store-tests" { };
+          hnix-store-nar =
+            final.callCabal2nix "hnix-store-nar" "${inputs.hnix-store}/hnix-store-nar" { };
+          hnix-store-core =
+            final.callCabal2nix "hnix-store-core" "${inputs.hnix-store}/hnix-store-core" { };
+          hnix-store-remote =
+            dontHaddock
+              (final.callCabal2nix "hnix-store-remote" "${inputs.hnix-store}/hnix-store-remote" { });
           hnix = dontCheck (final.callCabal2nix "hnix" inputs.hnix { });
         };
         mkStatic = pkName:
