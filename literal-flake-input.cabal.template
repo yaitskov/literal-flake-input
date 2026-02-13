@@ -68,6 +68,7 @@ library
     , trace-embrace           < 2
     , warp                    < 4
     , warp-tls                < 4
+    , wl-pprint-text          < 2
     , template-haskell        < 3
     , monad-logger            < 1
 
