@@ -1,18 +1,12 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 module LiteralFlakeInput.CmdRun where
 
+import Control.Monad.Logger ( liftLoc, ToLogStr(toLogStr) )
 import Data.Version (showVersion)
-import Paths_literal_flake_input ( version )
+import Language.Haskell.TH.Syntax (qLocation)
 import LiteralFlakeInput.Page ( Ypp(Ypp) )
 import LiteralFlakeInput.CmdArgs ( CmdArgs(..), CertKey, Cert )
-
 import LiteralFlakeInput.Prelude
-import Yesod.Core
-    ( toWaiApp,
-      LogLevel(LevelError),
-      Application,
-      Yesod(makeLogger, messageLoggerSource) )
-import Yesod.Core.Types ( Logger )
 import Network.Wai.Handler.WarpTLS ( runTLS, tlsSettings, TLSSettings )
 import Network.Wai.Handler.Warp
     ( Settings,
@@ -26,11 +20,14 @@ import Network.Wai.Handler.Warp
       runSettings,
       defaultSettings,
       defaultShouldDisplayException )
-
-import Language.Haskell.TH.Syntax (qLocation)
-import Control.Monad.Logger
-    (  liftLoc, ToLogStr(toLogStr) )
+import Paths_literal_flake_input ( version )
 import System.Remote.Monitoring.Wai (forkServer)
+import Yesod.Core
+    ( toWaiApp,
+      LogLevel(LevelError),
+      Application,
+      Yesod(makeLogger, messageLoggerSource) )
+import Yesod.Core.Types ( Logger )
 
 mkSettings :: CmdArgs -> Logger -> Settings
 mkSettings ca logger =

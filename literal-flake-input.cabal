@@ -71,6 +71,7 @@ library
     LiteralFlakeInput.Nix
     LiteralFlakeInput.Page
     LiteralFlakeInput.Prelude
+    LiteralFlakeInput.UrlEncoder
   other-modules:
     Paths_literal_flake_input
   autogen-modules:
@@ -79,12 +80,13 @@ library
     , binary                  < 1
     , ekg-wai                 < 1
     , ekg-core                < 1
-    -- , hnix-store-core
-    -- , hnix-store-nar
-    -- , hnix-store-remote
     , hnix                    < 1
+    , http-types              < 1
     , file-embed              < 1
+    , ref-tf                  < 1
     , tar                     < 1
+    , regex-tdfa              < 2
+    , time                    < 2
     , trace-embrace           < 2
     , warp                    < 4
     , warp-tls                < 4
@@ -113,6 +115,14 @@ executable literal-flake-input
   import: base
   ghc-options: -Wall -threaded "-with-rtsopts=-T -N"
   main-is: LiteralFlakeInput.hs
+  hs-source-dirs: app
+  build-depends:
+    , literal-flake-input
+
+executable e
+  import: base
+  ghc-options: -Wall -threaded "-with-rtsopts=-N"
+  main-is: EncodeInputUrl.hs
   hs-source-dirs: app
   build-depends:
     , literal-flake-input

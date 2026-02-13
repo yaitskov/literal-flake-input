@@ -33,8 +33,8 @@
     "hnix": {
       "flake": false,
       "locked": {
-        "lastModified": 1770837275,
-        "narHash": "sha256-Je3g+WCynS4jkyw0sj4PXNzZYdo0t4kbw60WeiJ0EVY=",
+        "lastModified": 1770928060,
+        "narHash": "sha256-l7R0vddBDmnMg8RgakvcWCTMJQyZplSnYT8GpUn3ZOo=",
         "path": "/home/don/pro/haskell/hnix2/hnix",
         "type": "path"
       },

@@ -129,7 +129,7 @@
           hnix-store-nar = final.callCabal2nix "hnix-store-nar" inputs.hnix-store-nar { };
           hnix-store-core = final.callCabal2nix "hnix-store-core" inputs.hnix-store-core { };
           hnix-store-remote = dontHaddock (final.callCabal2nix "hnix-store-remote" inputs.hnix-store-remote { });
-          hnix = final.callCabal2nix "hnix" inputs.hnix { };
+          hnix = dontCheck (final.callCabal2nix "hnix" inputs.hnix { });
         });
     #};
 
