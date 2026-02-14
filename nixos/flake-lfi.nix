@@ -39,6 +39,7 @@ in {
         isSystemUser = true;
       };
     };
+    environment.systemPackages = [ lfi ];
     systemd.services.literal-flake-input = {
       wantedBy = [ "network-online.target" ];
       requires = [ "network-online.target" ];
