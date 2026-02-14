@@ -74,6 +74,7 @@
               drv.overrideAttrs(oa: {
                 postInstall = (oa.postInstall or "") + ''
                   ${pkgs.upx}/bin/upx -9 $out/bin/literal-flake-input
+                  ${pkgs.upx}/bin/upx -9 $out/bin/e
                 '';
               });
 
@@ -92,7 +93,10 @@
 
             makeStatic = drv:
               drv.overrideAttrs(oa:
-                { configureFlags = (oa.configureFlags or []) ++ staticExtraLibs; });
+                { configureFlags = (oa.configureFlags or []) ++ staticExtraLibs;
+                  disallowGhcReference = false;
+                  disallowedRequisites = [];
+                });
 
             haskellPackagesO = pkgs.haskell.packages.${ghcName};
             inherit (pkgs.haskell.lib) dontCheck justStaticExecutables;
