@@ -30,9 +30,10 @@ Modify `/etc/nixos/flake.nix` as follows:
         modules = [
           literal-flake-input.nixosModules.${system}.default
           ({ ... }: {
-            programs.literal-flake-input {
+            programs.literal-flake-input = {
               enable = true;
               port = 3000;
+            };
           })
           ./configuration.nix
         ];
