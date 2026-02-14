@@ -16,7 +16,7 @@ in {
       description = "HTTP port - service port";
     };
     ekg-port = mkOption {
-      type = types.port;
+      type = types.nullOr types.port;
       default = null;
       description = "EKG HTTP port - enable built-in monitoring if set";
     };
