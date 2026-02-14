@@ -196,20 +196,21 @@ library
     Paths_literal_flake_input
   build-depends:
     , binary                  < 1
-    , ekg-wai                 < 1
     , ekg-core                < 1
+    , ekg-wai                 < 1
+    , file-embed              < 1
     , hnix                    < 1
     , http-types              < 1
-    , file-embed              < 1
+    , monad-logger            < 1
     , ref-tf                  < 1
+    , regex-tdfa              < 2
     , tar                     < 1
+    , template-haskell        < 3
     , time                    < 2
     , trace-embrace           < 2
     , warp                    < 4
     , warp-tls                < 4
     , wl-pprint-text          < 2
-    , template-haskell        < 3
-    , monad-logger            < 1
 
 test-suite test
   import: base
