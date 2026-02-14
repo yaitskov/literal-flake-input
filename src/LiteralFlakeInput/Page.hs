@@ -8,9 +8,11 @@ import Data.Binary.Builder (fromByteString)
 import Data.ByteString qualified as BS
 import Data.FileEmbed ( embedFile, makeRelativeToProject )
 import Data.Text (isSuffixOf)
+import Data.Version (showVersion)
 import LiteralFlakeInput.Nix
     ( translate, OutFormat(PlainNix, TaredNix), NixDer(..))
 import LiteralFlakeInput.Prelude
+import Paths_literal_flake_input ( version )
 import Yesod.Core
     ( Yesod(defaultLayout, makeSessionBackend),
       notFound,
@@ -71,6 +73,9 @@ getSiteMap = pure . TypedContent typeXml $ toContent $(makeRelativeToProject "as
 getRobots :: Handler TypedContent
 getRobots = pure . TypedContent typePlain $ toContent $(makeRelativeToProject "assets/robots.txt" >>= embedFile)
 
+-- getRobots :: Handler TypedContent
+-- getRobots = pure . TypedContent typePlain $ toContent ""  $(makeRelativeToProject "assets/robots.txt" >>= embedFile)
+
 getHomeR :: Texts -> Handler Contentable
 getHomeR params =
   case nonEmpty params of
@@ -81,6 +86,9 @@ getHomeR params =
         "github.svg" -> Contentable <$> getGithubIcon
         "robots.txt" ->  Contentable <$> getRobots
         "sitemap.xml" -> Contentable <$> getSiteMap
+        "version" ->
+          pure . Contentable . TypedContent typePlain . toContent $
+          "Literal Flake Input " <> showVersion version
         "index.html" ->  Contentable <$> landing
         _ -> notFound
     Just p | ".tar" `isSuffixOf` last p ->
