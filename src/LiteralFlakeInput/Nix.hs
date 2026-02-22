@@ -74,7 +74,7 @@ renderNixDer (NixDer m) =
 
 isUnquotedString :: Text -> Bool
 isUnquotedString s
-  | s =~ ("^(true|false|null|-?[0-9]+([.][0-9]+)?|\".*\"|[[].*|[{].*|[a-zA-Z_][a-zA-Z0-9_-]*[a-zA-Z0-9_]*:.*)$" :: Text) = False
+  | s =~ ("^(true|false|null|-?[0-9]+([.][0-9]+)?|\".*\"|[[].*[]]|[{].*[}]|[(].*[)]|[a-zA-Z_][a-zA-Z0-9_-]*[a-zA-Z0-9_]*:.*)$" :: Text) = False
   | otherwise = True
 
 quoteString :: Text -> Text

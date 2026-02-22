@@ -120,7 +120,8 @@ nix build $(e -an1 true \
               -an4 hello world \
               -an5 [ 1 2 ] \
               -an6 "{x = 1; y = 2; }" \
-              -an7 x: x + 1)
+              -an7 x: x + 1\
+              -an8 \(2+3\))
 ```
 
 The above command generates an input link which is going to be resolved
@@ -135,6 +136,7 @@ by the service into:
   an5 = [1 2];
   an6 = {x = 1; y = 2; };
   an7 = x: x + 1;
+  an8 = (2+3);
 }
 ```
 

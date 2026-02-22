@@ -6,6 +6,26 @@ import Test.Tasty.HUnit
 import LiteralFlakeInput.Prelude
 import LiteralFlakeInput.Nix
 
+test_e :: TestTree
+test_e =
+  testGroup "e"
+  [ testGroup "isUnquotedString"
+    [ go "x" True
+    , go "a+b" True
+    , go "a / b" True
+    , go "(a+b)" False
+    , go "[a]" False
+    , go "{a=1;}" False
+    , go "a: a" False
+    , go "true" False
+    , go "false" False
+    , go "null" False
+    , go "\"x\"" False
+    ]
+  ]
+  where
+    go s e = testCase (toString s) $ isUnquotedString s @?= e
+
 test_render :: TestTree
 test_render =
   testGroup "render"
