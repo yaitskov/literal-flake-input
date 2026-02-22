@@ -1,6 +1,6 @@
 {-# LANGUAGE MultilineStrings #-}
 module LiteralFlakeInput.UrlEncoder where
-import Data.Binary.Builder (fromByteString, toLazyByteString)
+import Data.Binary.Builder -- (fromByteString, toLazyByteString)
 import Data.List.NonEmpty qualified as NL
 import Data.Map.Strict qualified as M
 import Data.Text qualified as T
@@ -35,8 +35,6 @@ runUrlEncoderWith args
   | args `elem` [["--version"], ["-v"]] = do
     putStrLn $ "Literal Flake Input " <> showVersion version
     exitFailure
-  | ["i"] `isPrefixOf` args =
-    withUrl args (insertLfiIntoFlake "./flake.nix")
   | args `elem` [[], ["-h"], ["-help"], ["--help"], ["-help"], ["help"]] = do
     putStrLn """Literal Flake Input (LFI) URL encoder
       Usage: nix build $(e -an1 true \\
@@ -62,9 +60,11 @@ runUrlEncoderWith args
     putStrLn """LFI expects "even" number of argument. See help by -h or --help"""
     exitFailure
   | otherwise =
-    withUrl args putLBSLn
+    case args of
+      ("i":initArgs) -> withUrl initArgs (insertLfiIntoFlake "./flake.nix")
+      _ -> withUrl args (putLBSLn . toLazyByteString . ( "--override-input c " <>) . (<> ".tar"))
 
-withUrl :: [Text] -> (LByteString -> IO ()) -> IO ()
+withUrl :: [Text] -> (Builder -> IO ()) -> IO ()
 withUrl args cb =
   case fmap (quoteUnquotedString . joinArgValueWords) <$> groupByAttrName args of
     Left e -> putStrLn (toString e) >> exitFailure
@@ -129,19 +129,16 @@ validateNixExpr o nxe =
   where
     getNormForm = normalForm <=< nixEvalExprLoc mempty
 
-mkLfiUrl :: Text -> Map AtrName Text -> LByteString
+mkLfiUrl :: Text -> Map AtrName Text -> Builder
 mkLfiUrl siteRoot w =
-  toLazyByteString $
-    "--override-input c " <>
-    fromByteString (encodeUtf8 siteRoot) <>
-    encodePathSegments (flatpairs $ M.toList w)
-    <> "/.tar"
+  fromByteString (encodeUtf8 siteRoot) <>
+  encodePathSegments (flatpairs $ M.toList w)
   where
    flatpairs :: [(AtrName, Text)] -> [Text]
    flatpairs [] = []
    flatpairs ((AtrName an, av):t) = an : av : flatpairs t
 
-insertLfiIntoFlake :: (MonadFail m, MonadIO m) => FilePath -> LByteString -> m ()
+insertLfiIntoFlake :: (MonadFail m, MonadIO m) => FilePath -> Builder -> m ()
 insertLfiIntoFlake flakeFile url = do
   flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
   case parseNixTextLoc flakeFileContent of
@@ -149,9 +146,10 @@ insertLfiIntoFlake flakeFile url = do
     Right ast ->
       case inputsFirstBindingPos ast of
         Nothing -> fail $ "Flake ["  <> flakeFile <> "] does not have inputs"
-        Just inputsPos ->
+        Just inputsPos -> do
+          putStrLn $ "POS " <> show inputsPos
           writeFileText flakeFile $
             insertInputC
-              (renderInputsEntry (nposToI $ getSourceColumn inputsPos) (decodeUtf8 url))
+              (renderInputsEntry (nposToI $ getSourceColumn inputsPos) (decodeUtf8 $ toLazyByteString url))
               inputsPos
               flakeFileContent

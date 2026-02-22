@@ -82,25 +82,24 @@ translate = NixDer . pairs
 lookupBindings :: Ann ann NExprF -> Maybe [Binding (Ann ann NExprF)]
 lookupBindings = \case (Ann _ (NSet _ b)) -> pure b ; _ -> Nothing
 
-lookupInputsBinding :: [Binding NExprLoc] -> Maybe NExprLoc
+lookupInputsBinding :: [Binding NExprLoc] -> Maybe NSourcePos
 lookupInputsBinding =
   \case
     [] -> Nothing
     ((NamedVar (StaticKey (VarName "inputs") :| []) x _):_) ->
-      pure x
+      case x of
+        (Ann _ (NSet _ (NamedVar _ _ p : _))) -> pure p
+        (Ann p _empty) -> pure $ getSpanBegin p
     (_:r) -> lookupInputsBinding r
 
--- inputsValStart :: Maybe NPos
--- inputsValStart =
---   join (fmap (fmap (getSourceColumn . getSpanBegin) . lookupInputsBinding)
---          (join . fmap lookupBindings . rightToMaybe $ parseNixTextLoc "{inputs=  {  c = true;};}"))
-
 inputsFirstBindingPos :: NExprLoc -> Maybe NSourcePos
-inputsFirstBindingPos x =
-  case lookupInputsBinding =<< lookupBindings x of
-    Nothing -> Nothing
-    Just (Ann p _) -> pure $ getSpanBegin p
-    -- Just (Fix (Compose (AnnUnit p) _)) -> pure $ getSpanBegin p
+inputsFirstBindingPos = fmap fixBasis <$> lookupInputsBinding <=< lookupBindings
+
+fixBasis :: NSourcePos -> NSourcePos
+fixBasis (NSourcePos f l c) = NSourcePos f (decPos l) (decPos c)
+
+decPos :: NPos -> NPos
+decPos (NPos x) = NPos . mkPos $ unPos x - 1
 
 nposToI :: NPos -> Int
 nposToI (NPos x) = unPos x
@@ -108,8 +107,7 @@ nposToI (NPos x) = unPos x
 insertInputC :: Text -> NSourcePos -> Text -> Text
 insertInputC snippet pos =
   unlines . getText . insertMany snippet .
-    moveCursor ( nposToI $ getSourceLine pos
-                  , nposToI $ getSourceColumn pos) .
+    moveCursor (nposToI $ getSourceLine pos, 0) .
        (`textZipper` Nothing) . lines
 
 
