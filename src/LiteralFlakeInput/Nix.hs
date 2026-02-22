@@ -92,24 +92,23 @@ lookupInputsBinding =
         (Ann p _empty) -> pure $ getSpanBegin p
     (_:r) -> lookupInputsBinding r
 
-inputsFirstBindingPos :: NExprLoc -> Maybe NSourcePos
+inputsFirstBindingPos :: NExprLoc -> Maybe (Int, Int)
 inputsFirstBindingPos = fmap fixBasis <$> lookupInputsBinding <=< lookupBindings
 
-fixBasis :: NSourcePos -> NSourcePos
-fixBasis (NSourcePos f l c) = NSourcePos f (decPos l) (decPos c)
+fixBasis :: NSourcePos -> (Int, Int)
+fixBasis (NSourcePos _ l c) = (decPos l, decPos c)
 
-decPos :: NPos -> NPos
-decPos (NPos x) = NPos . mkPos $ unPos x - 1
+decPos :: NPos -> Int
+decPos (NPos x) = max 0 $ unPos x - 1
 
 nposToI :: NPos -> Int
 nposToI (NPos x) = unPos x
 
-insertInputC :: Text -> NSourcePos -> Text -> Text
+insertInputC :: Text -> Int -> Text -> Text
 insertInputC snippet pos =
   unlines . getText . insertMany snippet .
-    moveCursor (nposToI $ getSourceLine pos, 0) .
+    moveCursor (pos, 0) .
        (`textZipper` Nothing) . lines
-
 
 renderInputsEntry :: Int -> Text -> Text
 renderInputsEntry i url =

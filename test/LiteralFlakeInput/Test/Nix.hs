@@ -25,12 +25,12 @@ test_e =
     ]
   , testGroup "inputsFirstBindingPos"
     [ inputsCol "{inputs={x=1;};}" 9
-    , inputsLine "{inputs={x=1;};}" 1
+    , inputsLine "{inputs={x=1;};}" 0
     , inputsCol """{
                     inputs = {
                       x=1;
                     };
-                  }""" 12
+                  }""" 4
     , inputsLine """{
                     inputs = {
                       x=1;
@@ -40,13 +40,13 @@ test_e =
   ]
   where
     go s e = testCase (toString s) $ isUnquotedString s @?= e
-    inputsCol = inputsgo getSourceColumn
-    inputsLine = inputsgo getSourceLine
+    inputsCol = inputsgo snd
+    inputsLine = inputsgo fst
     inputsgo dim s e =
       testCase (show s <> " " <> show e)
       (((fmap dim . inputsFirstBindingPos) <=< rightToMaybe)
         (parseNixTextLoc s)
-        @?= (pure . NPos . mkPos $ e))
+        @?= pure e)
 
 test_render :: TestTree
 test_render =

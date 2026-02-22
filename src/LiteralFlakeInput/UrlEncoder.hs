@@ -10,8 +10,7 @@ import LiteralFlakeInput.Nix
     ( quoteUnquotedString,
       inputsFirstBindingPos,
       insertInputC,
-      renderInputsEntry,
-      nposToI )
+      renderInputsEntry )
 import LiteralFlakeInput.Prelude
 import Network.HTTP.Types (encodePathSegments)
 import Nix
@@ -19,7 +18,6 @@ import Nix
       normalForm,
       defaultOptions,
       parseNixTextLoc,
-      NSourcePos(getSourceColumn),
       Options )
 import Nix.Standard ( runWithBasicEffectsIO )
 import Paths_literal_flake_input ( version )
@@ -150,6 +148,6 @@ insertLfiIntoFlake flakeFile url = do
           putStrLn $ "POS " <> show inputsPos
           writeFileText flakeFile $
             insertInputC
-              (renderInputsEntry (nposToI $ getSourceColumn inputsPos) (decodeUtf8 $ toLazyByteString url))
-              inputsPos
+              (renderInputsEntry (snd inputsPos) (decodeUtf8 $ toLazyByteString url))
+              (fst inputsPos)
               flakeFileContent
