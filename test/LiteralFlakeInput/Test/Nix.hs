@@ -5,6 +5,7 @@ import Test.Tasty ( TestTree, testGroup )
 import Test.Tasty.HUnit
 import LiteralFlakeInput.Prelude
 import LiteralFlakeInput.Nix
+import Nix
 
 test_e :: TestTree
 test_e =
@@ -22,9 +23,30 @@ test_e =
     , go "null" False
     , go "\"x\"" False
     ]
+  , testGroup "inputsFirstBindingPos"
+    [ inputsCol "{inputs={x=1;};}" 9
+    , inputsLine "{inputs={x=1;};}" 1
+    , inputsCol """{
+                    inputs = {
+                      x=1;
+                    };
+                  }""" 12
+    , inputsLine """{
+                    inputs = {
+                      x=1;
+                    };
+                  }""" 2
+    ]
   ]
   where
     go s e = testCase (toString s) $ isUnquotedString s @?= e
+    inputsCol = inputsgo getSourceColumn
+    inputsLine = inputsgo getSourceLine
+    inputsgo dim s e =
+      testCase (show s <> " " <> show e)
+      (((fmap dim . inputsFirstBindingPos) <=< rightToMaybe)
+        (parseNixTextLoc s)
+        @?= (pure . NPos . mkPos $ e))
 
 test_render :: TestTree
 test_render =

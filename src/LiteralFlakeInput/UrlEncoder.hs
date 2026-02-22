@@ -6,15 +6,21 @@ import Data.Map.Strict qualified as M
 import Data.Text qualified as T
 import Data.Time.Clock ( getCurrentTime )
 import Data.Version (showVersion)
-import LiteralFlakeInput.Nix ( quoteUnquotedString )
+import LiteralFlakeInput.Nix
+    ( quoteUnquotedString,
+      inputsFirstBindingPos,
+      insertInputC,
+      renderInputsEntry,
+      nposToI )
 import LiteralFlakeInput.Prelude
 import Network.HTTP.Types (encodePathSegments)
 import Nix
-    ( Options,
-      nixEvalExprLoc,
+    ( nixEvalExprLoc,
       normalForm,
       defaultOptions,
-      parseNixTextLoc )
+      parseNixTextLoc,
+      NSourcePos(getSourceColumn),
+      Options )
 import Nix.Standard ( runWithBasicEffectsIO )
 import Paths_literal_flake_input ( version )
 import System.Environment.Blank (getEnvDefault)
@@ -29,6 +35,8 @@ runUrlEncoderWith args
   | args `elem` [["--version"], ["-v"]] = do
     putStrLn $ "Literal Flake Input " <> showVersion version
     exitFailure
+  | ["i"] `isPrefixOf` args =
+    withUrl args (insertLfiIntoFlake "./flake.nix")
   | args `elem` [[], ["-h"], ["-help"], ["--help"], ["-help"], ["help"]] = do
     putStrLn """Literal Flake Input (LFI) URL encoder
       Usage: nix build $(e -an1 true \\
@@ -54,22 +62,26 @@ runUrlEncoderWith args
     putStrLn """LFI expects "even" number of argument. See help by -h or --help"""
     exitFailure
   | otherwise =
-    case fmap (quoteUnquotedString . joinArgValueWords) <$> groupByAttrName args of
-      Left e -> putStrLn (toString e) >> exitFailure
-      Right m -> do
-        time <- getCurrentTime
-        let opts = defaultOptions time
-        (goodAtrs, badAtrs) <- M.partition isRight <$> M.traverseWithKey (go opts) m
-        if null badAtrs then
-          do
-            siteRoot <- toText <$> getEnvDefault "LFI_SITE" siteRootDef
-            putLBSLn . mkLfiUrl siteRoot . M.mapKeys argToAtr $ M.mapMaybe rightToMaybe goodAtrs
-          else
-          do
-            putDoc $ text "Invalid attribute(s):" <> linebreak <>
-              idnt4 (vcat . mapMaybe leftToMaybe $ M.elems badAtrs) <>
-              linebreak
-            exitFailure
+    withUrl args putLBSLn
+
+withUrl :: [Text] -> (LByteString -> IO ()) -> IO ()
+withUrl args cb =
+  case fmap (quoteUnquotedString . joinArgValueWords) <$> groupByAttrName args of
+    Left e -> putStrLn (toString e) >> exitFailure
+    Right m -> do
+      time <- getCurrentTime
+      let opts = defaultOptions time
+      (goodAtrs, badAtrs) <- M.partition isRight <$> M.traverseWithKey (go opts) m
+      if null badAtrs then
+        do
+          siteRoot <- toText <$> getEnvDefault "LFI_SITE" siteRootDef
+          cb . mkLfiUrl siteRoot . M.mapKeys argToAtr $ M.mapMaybe rightToMaybe goodAtrs
+        else
+        do
+          putDoc $ text "Invalid attribute(s):" <> linebreak <>
+            idnt4 (vcat . mapMaybe leftToMaybe $ M.elems badAtrs) <>
+            linebreak
+          exitFailure
   where
     idnt4 = indent 4
     siteRootDef = "https://lficom.me"
@@ -128,3 +140,18 @@ mkLfiUrl siteRoot w =
    flatpairs :: [(AtrName, Text)] -> [Text]
    flatpairs [] = []
    flatpairs ((AtrName an, av):t) = an : av : flatpairs t
+
+insertLfiIntoFlake :: (MonadFail m, MonadIO m) => FilePath -> LByteString -> m ()
+insertLfiIntoFlake flakeFile url = do
+  flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
+  case parseNixTextLoc flakeFileContent of
+    Left e -> fail $ "Failed to parse " <> flakeFile <> " due" <> show e
+    Right ast ->
+      case inputsFirstBindingPos ast of
+        Nothing -> fail $ "Flake ["  <> flakeFile <> "] does not have inputs"
+        Just inputsPos ->
+          writeFileText flakeFile $
+            insertInputC
+              (renderInputsEntry (nposToI $ getSourceColumn inputsPos) (decodeUtf8 url))
+              inputsPos
+              flakeFileContent

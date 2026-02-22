@@ -63,10 +63,12 @@ library
     , hnix                    < 1
     , http-types              < 1
     , monad-logger            < 1
+    , prettyprinter           < 2
     , ref-tf                  < 1
     , regex-tdfa              < 2
     , tar                     < 1
     , template-haskell        < 3
+    , text-zipper             < 1
     , time                    < 2
     , trace-embrace           < 2
     , warp                    < 4
@@ -84,6 +86,7 @@ test-suite test
     test
   ghc-options: -Wall -rtsopts -threaded -main-is Driver
   build-depends:
+    , hnix
     , literal-flake-input
     , QuickCheck
     , tasty

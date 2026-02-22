@@ -1,34 +1,21 @@
 module LiteralFlakeInput.Nix where
 
+import Prettyprinter ( indent, line )
 import Data.Text.Lazy ( concat )
+import Data.Text.Zipper
+    ( getText, insertMany, moveCursor, textZipper )
 import Codec.Archive.Tar ( write )
 import Codec.Archive.Tar.Entry ( fileEntry, toTarPath, TarPath )
-import LiteralFlakeInput.Prelude
-    ( otherwise,
-      show,
-      ($),
-      (<$>),
-      Eq,
-      Show,
-      Semigroup((<>)),
-      Bool(False),
-      Either(Left, Right),
-      Text,
-      LazyStrict(toLazy),
-      uncurry,
-      (.),
-      LText,
-      error,
-      ConvertUtf8(encodeUtf8),
-      LByteString,
-      Bool(True),
-      ToText(toText) )
+import LiteralFlakeInput.Prelude hiding (concat)
+import Nix
+import Nix.Atoms ( NAtom(NURI) )
 import Text.Regex.TDFA ( (=~) )
 import Yesod.Core
     ( ToTypedContent(..),
       TypedContent(TypedContent),
       ToContent(..),
       ContentType )
+
 
 data OutFormat =  TaredNix | PlainNix deriving (Show, Eq)
 newtype NixDer (o :: OutFormat)  = NixDer [(Text, Text)] deriving (Show, Eq)
@@ -90,3 +77,42 @@ renderEntry k v = toLazy k <> "=" <> toLazy (quoteUnquotedString v) <> ";"
 
 translate :: [Text] -> NixDer o
 translate = NixDer . pairs
+
+
+lookupBindings :: Ann ann NExprF -> Maybe [Binding (Ann ann NExprF)]
+lookupBindings = \case (Ann _ (NSet _ b)) -> pure b ; _ -> Nothing
+
+lookupInputsBinding :: [Binding NExprLoc] -> Maybe NExprLoc
+lookupInputsBinding =
+  \case
+    [] -> Nothing
+    ((NamedVar (StaticKey (VarName "inputs") :| []) x _):_) ->
+      pure x
+    (_:r) -> lookupInputsBinding r
+
+-- inputsValStart :: Maybe NPos
+-- inputsValStart =
+--   join (fmap (fmap (getSourceColumn . getSpanBegin) . lookupInputsBinding)
+--          (join . fmap lookupBindings . rightToMaybe $ parseNixTextLoc "{inputs=  {  c = true;};}"))
+
+inputsFirstBindingPos :: NExprLoc -> Maybe NSourcePos
+inputsFirstBindingPos x =
+  case lookupInputsBinding =<< lookupBindings x of
+    Nothing -> Nothing
+    Just (Ann p _) -> pure $ getSpanBegin p
+    -- Just (Fix (Compose (AnnUnit p) _)) -> pure $ getSpanBegin p
+
+nposToI :: NPos -> Int
+nposToI (NPos x) = unPos x
+
+insertInputC :: Text -> NSourcePos -> Text -> Text
+insertInputC snippet pos =
+  unlines . getText . insertMany snippet .
+    moveCursor ( nposToI $ getSourceLine pos
+                  , nposToI $ getSourceColumn pos) .
+       (`textZipper` Nothing) . lines
+
+
+renderInputsEntry :: Int -> Text -> Text
+renderInputsEntry i url =
+  show . indent i $ "c = " <> prettyNix (mkConst (NURI url)) <> ";" <> line

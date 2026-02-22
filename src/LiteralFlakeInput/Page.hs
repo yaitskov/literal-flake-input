@@ -87,9 +87,6 @@ getSiteMap = pure . TypedContent typeXml $ toContent $(makeRelativeToProject "as
 getRobots :: Handler TypedContent
 getRobots = pure . TypedContent typePlain $ toContent $(makeRelativeToProject "assets/robots.txt" >>= embedFile)
 
--- getRobots :: Handler TypedContent
--- getRobots = pure . TypedContent typePlain $ toContent ""  $(makeRelativeToProject "assets/robots.txt" >>= embedFile)
-
 getHomeR :: Texts -> Handler Contentable
 getHomeR params =
   case nonEmpty params of
