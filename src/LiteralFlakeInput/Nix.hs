@@ -113,4 +113,15 @@ insertInputC snippet pos =
 
 renderInputsEntry :: Int -> Text -> Text
 renderInputsEntry i url =
-  show . indent i $ "c = " <> prettyNix (mkConst (NURI url)) <> ";" <> line
+  show . indent i $ "c = " <> prettyNix ne <> ";" <> line
+  where
+    ne = mkNonRecSet
+      [ NamedVar
+          (StaticKey "url" :| [])
+          (mkConst (NURI url))
+          nullPos
+      , NamedVar
+          (StaticKey "flake" :| [])
+          (mkBool False)
+          nullPos
+      ]

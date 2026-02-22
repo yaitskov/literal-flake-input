@@ -3,12 +3,9 @@
 {
   description = "Literal Flake Inputs";
   inputs = {
+    c = { url = https://lficom.me/static/false; flake = false; };
     nixpkgs.url = "github:NixOS/nixpkgs/bc16855ba53f3cb6851903a393e7073d1b5911e7";
     flake-utils.url = "github:numtide/flake-utils";
-    c = {
-      url = "https://lficom.me/static/false/";
-      flake = false;
-    };
     uphack = {
       url = "github:yaitskov/upload-doc-to-hackage";
       flake = false;
