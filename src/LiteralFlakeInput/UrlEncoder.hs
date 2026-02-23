@@ -38,7 +38,8 @@ runUrlEncoderWith args
                            -an4 hello world \\
                            -an5 [ 1 2 ] \\
                            -an6 "{x = 1; y = 2; }" \\
-                           -an7 x: x + 1)
+                           -an7 x: x + 1\\
+                           -an8 \\(1 + 2\\) )
 
       The result is a non-flake URL input:
       nix build --override-input c https://lficom.me/an1/true/an2/null/an3/42/an4/%22hello%20world%22/an5/%5B%201%202%20%5D/an6/%7Bx%20=%201%3B%20y%20=%202%3B%20%7D/an7/a:%20a%20+%201/.tar
@@ -51,16 +52,19 @@ runUrlEncoderWith args
 
       Project home page https://github.com/yaitskov/literal-flake-input"""
     exitFailure
-  | length args == 1 = do
-    putStrLn """LFI expects "even" number of argument. See help by -h or --help"""
-    exitFailure
   | otherwise =
     case args of
-      ("i":initArgs) -> withUrl initArgs (insertLfiIntoFlake "./flake.nix")
-      ("p":printArgsOverride) -> prettyPrintLfi "./flake.nix" printArgsOverride
+      ("i":initArgs) -> do
+         argsMap <- M.mapKeys argToAtr <$> parsePath initArgs
+         withUrl argsMap (insertLfiIntoFlake flakeFile)
+      ("p":printArgsOverride) -> prettyPrintLfi flakeFile printArgsOverride
       -- ("m":mergeArgs) -> merge with default url before doing init
-      _ -> withUrl args (putLBSLn . toLazyByteString . ( "--override-input c " <>) . (<> ".tar"))
-
+      _ | length args == 1 -> do
+          putStrLn """LFI expects "even" number of argument. See help by -h or --help"""
+          exitFailure
+        | otherwise -> mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl flakeFile args
+  where
+    flakeFile = "./flake.nix"
 posixEpoch :: UTCTime
 posixEpoch = UTCTime d 0
   where
@@ -89,10 +93,10 @@ parsePath args =
           (text (toLazy an) <> linebreak <> (idnt4 . vcat . fmap (text . toLazy) $ lines e))
         Right () -> pure $ Right av
 
-withUrl :: [Text] -> (Builder -> IO ()) -> IO ()
+withUrl :: MonadIO m => Map AtrName Text -> (Builder -> m ()) -> m ()
 withUrl args cb = do
-  siteRoot <- toText <$> getEnvDefault "LFI_SITE" siteRootDef
-  cb . mkLfiUrl siteRoot . M.mapKeys argToAtr =<< parsePath args
+  siteRoot <- toText <$> liftIO (getEnvDefault "LFI_SITE" siteRootDef)
+  cb $ mkLfiUrl siteRoot args
   where
     siteRootDef = "https://lficom.me"
 
@@ -145,11 +149,7 @@ mkLfiUrl siteRoot w =
 
 prettyPrintLfi :: (MonadFail m, MonadIO m) => FilePath -> [Text] -> m ()
 prettyPrintLfi flakeFile printArgsOverride =
-  doesFileExist flakeFile >>= \case
-    True -> handleFlakeFile
-    False -> do
-      absFf <- makeAbsolute flakeFile
-      fail $ "Flake file [" <> absFf <> "] does not exist"
+  withFlakeInputUrlFromFile flakeFile printUrlAsAtrSet
   where
     layout =
       layoutSmart defaultLayoutOptions { layoutPageWidth = AvailablePerLine 20 1 }
@@ -162,20 +162,43 @@ prettyPrintLfi flakeFile printArgsOverride =
             Left e -> fail $ "Cannot parse attr set of url: " <> show e
             Right atrs -> putTextLn . renderStrict . layout . prettyNix $ stripAnnotation atrs
 
-    handleFlakeFile = do
-      flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
-      case parseNixTextLoc flakeFileContent of
-        Left e -> fail $ "Failed to parse " <> flakeFile <> " due" <> show e
-        Right ast ->
-          case inputsUrlCBinding ast of
-            Nothing ->
-              fail $ "Flake file " <> flakeFile <> " does not have input [c] or url of the input is missing"
-            Just (Ann _ (NConstant (NURI curUr))) ->
-              printUrlAsAtrSet curUr
-            Just (Ann _ (NStr (DoubleQuoted [Plain curUr]))) ->
-              printUrlAsAtrSet curUr
-            Just (Ann _ unsupported) ->
-              fail $ "c input url is not a string but: " <> show unsupported
+withFlakeInputUrlFromFile :: (MonadFail m, MonadIO m) => FilePath -> (Text -> m ()) -> m ()
+withFlakeInputUrlFromFile flakeFile cb =
+  doesFileExist flakeFile >>= \case
+  True -> do
+    flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
+    case parseNixTextLoc flakeFileContent of
+      Left e -> fail $ "Failed to parse " <> flakeFile <> " due" <> show e
+      Right ast ->
+        case inputsUrlCBinding ast of
+          Nothing ->
+            fail $ "Flake file " <> flakeFile <> " does not have input [c] or url of the input is missing"
+          Just (Ann _ (NConstant (NURI curUr))) ->
+            cb curUr
+          Just (Ann _ (NStr (DoubleQuoted [Plain curUr]))) ->
+            cb curUr
+          Just (Ann _ unsupported) ->
+            fail $ "c input url is not a string but: " <> show unsupported
+  False -> do
+    absFf <- makeAbsolute flakeFile
+    fail $ "Flake file [" <> absFf <> "] does not exist"
+
+
+mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl :: (MonadFail m, MonadIO m) => FilePath -> [Text] -> m ()
+mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl flakeFile cmdArgsOverride =
+  withFlakeInputUrlFromFile flakeFile printUrlAsAtrSet
+  where
+    printUrlAsAtrSet url = do
+      overMap <-  M.mapKeys argToAtr <$> parsePath cmdArgsOverride
+      case decodePath . extractPath $ encodeUtf8 url of
+        (pathSegs, _qa) ->
+          let
+            NixDer bindings = translate @PlainNix pathSegs
+            argsFromFlake :: Map AtrName Text = M.mapKeys AtrName $ M.fromList bindings
+          in
+            withUrl
+              (overMap <> argsFromFlake)
+              (liftIO . putLBSLn . toLazyByteString . ( "--override-input c " <>) . (<> ".tar"))
 
 insertLfiIntoFlake :: (MonadFail m, MonadIO m) => FilePath -> Builder -> m ()
 insertLfiIntoFlake flakeFile url =
