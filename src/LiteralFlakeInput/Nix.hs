@@ -1,9 +1,10 @@
+{-# LANGUAGE ViewPatterns #-}
 module LiteralFlakeInput.Nix where
 
 import Prettyprinter ( indent, line )
 import Data.Text.Lazy ( concat )
 import Data.Text.Zipper
-    ( getText, insertMany, moveCursor, textZipper )
+       --( getText, insertMany, moveCursor, textZipper )
 import Codec.Archive.Tar ( write )
 import Codec.Archive.Tar.Entry ( fileEntry, toTarPath, TarPath )
 import LiteralFlakeInput.Prelude hiding (concat)
@@ -82,6 +83,13 @@ translate = NixDer . pairs
 lookupBindings :: Ann ann NExprF -> Maybe [Binding (Ann ann NExprF)]
 lookupBindings = \case (Ann _ (NSet _ b)) -> pure b ; _ -> Nothing
 
+lookupBindingOf :: Text -> [Binding NExprLoc] -> Maybe NExprLoc
+lookupBindingOf tarBndName =
+  \case
+    [] -> Nothing
+    ((NamedVar (StaticKey (VarName ((==tarBndName) -> True)) :| []) x _):_) -> pure x
+    (_:r) -> lookupBindingOf tarBndName r
+
 lookupInputsBinding :: [Binding NExprLoc] -> Maybe NSourcePos
 lookupInputsBinding =
   \case
@@ -93,7 +101,18 @@ lookupInputsBinding =
     (_:r) -> lookupInputsBinding r
 
 inputsFirstBindingPos :: NExprLoc -> Maybe (Int, Int)
-inputsFirstBindingPos = fmap fixBasis <$> lookupInputsBinding <=< lookupBindings
+inputsFirstBindingPos =
+  fmap fixBasis <$> lookupInputsBinding <=< lookupBindings
+
+nexprPos :: NExprLoc -> NSourcePos
+nexprPos (Ann s _) = getSpanBegin s
+
+inputsUrlCBinding :: NExprLoc -> Maybe NExprLoc
+inputsUrlCBinding =
+  -- fmap (fixBasis . nexprPos) <$>
+  lookupBindingOf "url" <=< lookupBindings <=<
+  lookupBindingOf "c" <=< lookupBindings <=<
+  lookupBindingOf "inputs" <=< lookupBindings
 
 fixBasis :: NSourcePos -> (Int, Int)
 fixBasis (NSourcePos _ l c) = (decPos l, decPos c)
@@ -109,6 +128,24 @@ insertInputC snippet pos =
   unlines . getText . insertMany snippet .
     moveCursor (pos, 0) .
        (`textZipper` Nothing) . lines
+
+distance :: Monoid a => (Int, Int) -> TextZipper a -> Int
+distance s z
+  | cursorPosition z == s = 0
+  | otherwise = 1 + distance s (moveRight z)
+
+nTimes :: Int -> (a -> a) -> a -> a
+nTimes 0 _ = id
+nTimes 1 f = f
+nTimes n f = f . nTimes (n-1) f
+
+insertUrlCInput :: NExprLoc -> NExpr -> Text -> Text
+insertUrlCInput (Ann oldUrlP _) newUrl content =
+  unlines . getText . insertMany (show $ prettyNix newUrl) $ nTimes (distance e z) deleteChar z
+  where
+    z = moveCursor s . (`textZipper` Nothing) $ lines content
+    s = fixBasis $ getSpanBegin oldUrlP
+    e = fixBasis $ getSpanEnd oldUrlP
 
 renderInputsEntry :: Int -> Text -> Text
 renderInputsEntry i url =

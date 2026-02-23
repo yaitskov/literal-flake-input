@@ -7,18 +7,19 @@ import Data.Text qualified as T
 import Data.Time.Clock ( getCurrentTime )
 import Data.Version (showVersion)
 import LiteralFlakeInput.Nix
-    ( quoteUnquotedString,
-      inputsFirstBindingPos,
-      insertInputC,
-      renderInputsEntry )
+    -- ( quoteUnquotedString,
+    --   inputsFirstBindingPos,
+    --   insertInputC,
+    --   renderInputsEntry )
 import LiteralFlakeInput.Prelude
 import Network.HTTP.Types (encodePathSegments)
 import Nix
-    ( nixEvalExprLoc,
-      normalForm,
-      defaultOptions,
-      parseNixTextLoc,
-      Options )
+    -- ( nixEvalExprLoc,
+    --   normalForm,
+    --   defaultOptions,
+    --   parseNixTextLoc,
+    --   Options )
+import Nix.Atoms
 import Nix.Standard ( runWithBasicEffectsIO )
 import Paths_literal_flake_input ( version )
 import System.Environment.Blank (getEnvDefault)
@@ -142,12 +143,20 @@ insertLfiIntoFlake flakeFile url = do
   case parseNixTextLoc flakeFileContent of
     Left e -> fail $ "Failed to parse " <> flakeFile <> " due" <> show e
     Right ast ->
-      case inputsFirstBindingPos ast of
-        Nothing -> fail $ "Flake ["  <> flakeFile <> "] does not have inputs"
-        Just inputsPos -> do
-          putStrLn $ "POS " <> show inputsPos
+      case inputsUrlCBinding ast of
+        Nothing -> -- init
+          case inputsFirstBindingPos ast of
+            Nothing -> fail $ "Flake ["  <> flakeFile <> "] does not have inputs"
+            Just inputsPos -> do
+              putStrLn $ "POS " <> show inputsPos
+              writeFileText flakeFile $
+                insertInputC
+                  (renderInputsEntry (snd inputsPos) (decodeUtf8 $ toLazyByteString url))
+                  (fst inputsPos)
+                  flakeFileContent
+        Just oldUrl ->
           writeFileText flakeFile $
-            insertInputC
-              (renderInputsEntry (snd inputsPos) (decodeUtf8 $ toLazyByteString url))
-              (fst inputsPos)
+            insertUrlCInput
+              oldUrl
+              (mkConst (NURI (decodeUtf8 $ toLazyByteString url)))
               flakeFileContent
