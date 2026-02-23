@@ -5,7 +5,7 @@ import Data.Binary.Builder
 import Data.List.NonEmpty qualified as NL
 import Data.Map.Strict qualified as M
 import Data.Text qualified as T
-import Data.Time.Clock ( getCurrentTime )
+import Data.Time ( UTCTime(UTCTime), fromGregorian )
 import Data.Version (showVersion)
 import LiteralFlakeInput.Nix
 import LiteralFlakeInput.Prelude
@@ -59,35 +59,43 @@ runUrlEncoderWith args
       -- ("m":mergeArgs) -> merge with default url before doing init
       _ -> withUrl args (putLBSLn . toLazyByteString . ( "--override-input c " <>) . (<> ".tar"))
 
-withUrl :: [Text] -> (Builder -> IO ()) -> IO ()
-withUrl args cb =
+posixEpoch :: UTCTime
+posixEpoch = UTCTime d 0
+  where
+    d = fromGregorian 1970 1 1
+
+parsePath :: (MonadFail m, MonadIO m) => [Text] -> m (Map ArgName Text)
+parsePath args =
   case fmap (quoteUnquotedString . joinArgValueWords) <$> groupByAttrName args of
     Left e -> putStrLn (toString e) >> exitFailure
     Right m -> do
-      time <- getCurrentTime
-      let opts = defaultOptions time
+      let opts = defaultOptions posixEpoch
       (goodAtrs, badAtrs) <- M.partition isRight <$> M.traverseWithKey (go opts) m
       if null badAtrs then
+        pure $ M.mapMaybe rightToMaybe goodAtrs
+      else
         do
-          siteRoot <- toText <$> getEnvDefault "LFI_SITE" siteRootDef
-          cb . mkLfiUrl siteRoot . M.mapKeys argToAtr $ M.mapMaybe rightToMaybe goodAtrs
-        else
-        do
-          putDoc $ text "Invalid attribute(s):" <> linebreak <>
+          liftIO $ putDoc $ text "Invalid attribute(s):" <> linebreak <>
             idnt4 (vcat . mapMaybe leftToMaybe $ M.elems badAtrs) <>
             linebreak
           exitFailure
   where
     idnt4 = indent 4
-    siteRootDef = "https://lficom.me"
     go opts (ArgName an) av = do
       validateNixExpr opts av >>= \case
         Left e -> pure . Left $
           (text (toLazy an) <> linebreak <> (idnt4 . vcat . fmap (text . toLazy) $ lines e))
         Right () -> pure $ Right av
 
-newtype ArgName = ArgName Text deriving newtype (Eq, Show, Ord)
-newtype AtrName = AtrName Text deriving newtype (Eq, Show, Ord)
+withUrl :: [Text] -> (Builder -> IO ()) -> IO ()
+withUrl args cb = do
+  siteRoot <- toText <$> getEnvDefault "LFI_SITE" siteRootDef
+  cb . mkLfiUrl siteRoot . M.mapKeys argToAtr =<< parsePath args
+  where
+    siteRootDef = "https://lficom.me"
+
+newtype ArgName = ArgName { unArgName :: Text } deriving newtype (Eq, Show, Ord)
+newtype AtrName = AtrName { unAtrName :: Text } deriving newtype (Eq, Show, Ord)
 
 argToAtr :: ArgName -> AtrName
 argToAtr (ArgName s) = AtrName (T.drop 1 s)
@@ -112,13 +120,13 @@ joinArgValueWords :: NonEmpty Text -> Text
 joinArgValueWords =  unwords . NL.toList
 
 
-validateNixExpr :: Options -> Text -> IO (Either Text ())
+validateNixExpr :: MonadIO m => Options -> Text -> m (Either Text ())
 validateNixExpr o nxe =
   case parseNixTextLoc nxe of
     Left e ->
       pure . Left $ "[" <> nxe <>  "] is bad Nix expression due:" <> show e
     Right e ->
-      runWithBasicEffectsIO o $ do
+      liftIO $ runWithBasicEffectsIO o $ do
         !_ <- getNormForm e
         pure $ Right ()
   where
@@ -134,17 +142,19 @@ mkLfiUrl siteRoot w =
    flatpairs ((AtrName an, av):t) = an : av : flatpairs t
 
 prettyPrintLfi :: (MonadFail m, MonadIO m) => FilePath -> [Text] -> m ()
-prettyPrintLfi flakeFile _printArgsOverride =
+prettyPrintLfi flakeFile printArgsOverride =
   doesFileExist flakeFile >>= \case
     True -> handleFlakeFile
     False -> do
       absFf <- makeAbsolute flakeFile
       fail $ "Flake file [" <> absFf <> "] does not exist"
   where
-    printUrlAsAtrSet url =
+    printUrlAsAtrSet url = do
+      overMap :: Map Text Text <-  M.mapKeys (unAtrName . argToAtr) <$> parsePath printArgsOverride
       case decodePath . extractPath $ encodeUtf8 url of
         (pathSegs, _qa) ->
-          case parseNixTextLoc . toText . renderNixDer $ translate @PlainNix pathSegs of
+          let NixDer bindings = translate @PlainNix pathSegs in
+          case parseNixTextLoc . toText . renderNixDer . NixDer . M.toList $ overMap <> M.fromList bindings of
             Left e -> fail $ "Cannot parse attr set of url: " <> show e
             Right atrs -> print $ prettyNix $ stripAnnotation atrs
 
