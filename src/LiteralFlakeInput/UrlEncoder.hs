@@ -2,6 +2,7 @@
 module LiteralFlakeInput.UrlEncoder where
 import Data.Binary.Builder
     ( Builder, toLazyByteString, fromByteString )
+import Data.List ((\\), nub)
 import Data.List.NonEmpty qualified as NL
 import Data.Map.Strict qualified as M
 import Data.Text qualified as T
@@ -59,9 +60,11 @@ runUrlEncoderWith args
          withUrl argsMap (insertLfiIntoFlake flakeFile)
       ("p":printArgsOverride) -> prettyPrintLfi flakeFile printArgsOverride
       ("m":mergeArgs@(_:_)) -> mergeCmdArgsIntoFlakeUrl flakeFile mergeArgs
+      ("x":attrsToRemove@(_:_)) -> removeAttrsFromFlakeInputUrl flakeFile attrsToRemove
       _ -> mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl flakeFile args
   where
     flakeFile = "./flake.nix"
+
 posixEpoch :: UTCTime
 posixEpoch = UTCTime d 0
   where
@@ -203,6 +206,42 @@ mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl flakeFile cmdArgsOverride =
             withUrl
               (overMap <> argsFromFlake)
               (liftIO . putLBSLn . toLazyByteString . ( "--override-input c " <>) . (<> ".tar"))
+
+removeAttrsFromFlakeInputUrl :: (MonadFail m, MonadIO m) => FilePath -> [Text] -> m ()
+removeAttrsFromFlakeInputUrl flakeFile attrsToRemove = do
+  doesFileExist flakeFile >>= \case
+    True -> updateFlakeFile
+    False -> do
+      absFf <- makeAbsolute flakeFile
+      fail $ "Flake file [" <> absFf <> "] does not exist"
+  where
+    updateFlakeFile = do
+      flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
+      case flakeInputUrlFromText flakeFileContent of
+        Left e -> fail e
+        Right url ->
+          case decodePath . extractPath $ encodeUtf8 url of
+            (pathSegs, _qa) ->
+              let
+                NixDer bindings = translate @PlainNix pathSegs
+                argsFromFlake :: Map AtrName Text = M.mapKeys AtrName $ M.fromList bindings
+                argsFromFlake' = foldl' (flip M.delete) argsFromFlake $ fmap AtrName attrsToRemove
+                missingAtrs = attrsToRemove \\ fmap unAtrName (M.keys argsFromFlake)
+              in
+                if nub attrsToRemove == attrsToRemove
+                then
+                  if null missingAtrs
+                  then
+                    withUrl
+                      argsFromFlake'
+                      (\b ->
+                         case insertLfiIntoFlakeBody flakeFileContent b of
+                           Left e -> fail e
+                           Right flakeFileContent' -> writeFileText flakeFile flakeFileContent')
+                  else
+                   fail . toString $ "Unknown attribute(s): " <> T.intercalate ", " missingAtrs
+               else
+                 fail . toString $ "Duplicated attribute(s): " <> T.intercalate ", " (attrsToRemove \\ nub attrsToRemove)
 
 mergeCmdArgsIntoFlakeUrl :: (MonadFail m, MonadIO m) => FilePath -> [Text] -> m ()
 mergeCmdArgsIntoFlakeUrl flakeFile mergeArgs = do
