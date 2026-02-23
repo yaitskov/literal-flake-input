@@ -23,6 +23,7 @@ import Text.PrettyPrint.Leijen.Text (linebreak, text, putDoc, vcat, indent)
 import Text.Regex.TDFA ( (=~) )
 import UnliftIO.Directory ( doesFileExist, makeAbsolute )
 
+
 runUrlEncoder :: IO ()
 runUrlEncoder = runUrlEncoderWith . fmap toText =<< getArgs
 
@@ -42,14 +43,57 @@ runUrlEncoderWith args
                            -an7 x: x + 1\\
                            -an8 \\(1 + 2\\) )
 
+      Mail purpose of "e" command is generating flake overriding input URL
+      out of arbitrary command line arguments.
+
       The result is a non-flake URL input:
       nix build --override-input c https://lficom.me/an1/true/an2/null/an3/42/an4/%22hello%20world%22/an5/%5B%201%202%20%5D/an6/%7Bx%20=%201%3B%20y%20=%202%3B%20%7D/an7/a:%20a%20+%201/.tar
 
-      LFI translates arbitrary command line arguments into a Nix attribute set.
-      Nix values are verified with hnix interpreter.
+      LFI web service responds with a Nix attribute set corresponding
+      to the URL path. Nix values are verified with hnix interpreter.
 
       URL prefix can be overriden via environment variable LFI_SITE.
-      If you copy URL into flake file as a default value then drop tar suffix.
+
+      If you copy the URL into a flake file as a default value URL then
+      drop ".tar" suffix, but it is easier to use auxiliary "e" commands
+      for handling literal flake input URLs in a flake file.
+
+      e p   - print attributes from an input URL in flake file
+              with overrides from command line arguments as
+              a pretty-printed Nix attrset.
+
+        $ e p -an1 true -an2 null -an3 12 -an4 hello world -an5 [ 1 2 ] \\
+              -an6 "{x = 1; y = 2; }" -an7 x: x + 1 -an8 \\(1 + 2\\)
+      { ... }:
+        {
+          an1 = true;
+          an2 = null;
+          an3 = 12;
+          an4 = "hello world";
+          an5 = [ 1 2 ];
+          an6 = {
+            x = 1;
+            y = 2;
+          };
+          an7 = x:
+            x + 1;
+          an8 = 1 + 2;
+          static = false;
+        }
+
+      e x   - remove specified attributes from flake input URL
+
+        $ e x an1 an4
+
+      e m   - merge attributes form command line arguments into
+              flake input URL in flake file
+
+        $ e m -an1 false
+
+      e i   - init - add new non-flake input to flake file or
+              completely override URL of flake input if it already exists.
+
+        $ e i -an1 true
 
       Project home page https://github.com/yaitskov/literal-flake-input"""
     exitFailure
