@@ -54,15 +54,12 @@ runUrlEncoderWith args
     exitFailure
   | otherwise =
     case args of
-      ("i":initArgs) -> do
+      ("i":initArgs@(_:_)) -> do
          argsMap <- M.mapKeys argToAtr <$> parsePath initArgs
          withUrl argsMap (insertLfiIntoFlake flakeFile)
       ("p":printArgsOverride) -> prettyPrintLfi flakeFile printArgsOverride
-      -- ("m":mergeArgs) -> merge with default url before doing init
-      _ | length args == 1 -> do
-          putStrLn """LFI expects "even" number of argument. See help by -h or --help"""
-          exitFailure
-        | otherwise -> mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl flakeFile args
+      ("m":mergeArgs@(_:_)) -> mergeCmdArgsIntoFlakeUrl flakeFile mergeArgs
+      _ -> mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl flakeFile args
   where
     flakeFile = "./flake.nix"
 posixEpoch :: UTCTime
@@ -167,22 +164,27 @@ withFlakeInputUrlFromFile flakeFile cb =
   doesFileExist flakeFile >>= \case
   True -> do
     flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
-    case parseNixTextLoc flakeFileContent of
-      Left e -> fail $ "Failed to parse " <> flakeFile <> " due" <> show e
-      Right ast ->
-        case inputsUrlCBinding ast of
-          Nothing ->
-            fail $ "Flake file " <> flakeFile <> " does not have input [c] or url of the input is missing"
-          Just (Ann _ (NConstant (NURI curUr))) ->
-            cb curUr
-          Just (Ann _ (NStr (DoubleQuoted [Plain curUr]))) ->
-            cb curUr
-          Just (Ann _ unsupported) ->
-            fail $ "c input url is not a string but: " <> show unsupported
+    case flakeInputUrlFromText flakeFileContent of
+      Left e -> fail e
+      Right url -> cb url
   False -> do
     absFf <- makeAbsolute flakeFile
     fail $ "Flake file [" <> absFf <> "] does not exist"
 
+flakeInputUrlFromText :: Text -> Either String Text
+flakeInputUrlFromText flakeContent =
+  case parseNixTextLoc flakeContent of
+    Left e -> fail $ "Failed to parse flake due" <> show e
+    Right ast ->
+      case inputsUrlCBinding ast of
+        Nothing ->
+          fail "Flake file not have input [c] or url of the input is missing"
+        Just (Ann _ (NConstant (NURI curUr))) ->
+          pure curUr
+        Just (Ann _ (NStr (DoubleQuoted [Plain curUr]))) ->
+          pure curUr
+        Just (Ann _ unsupported) ->
+          fail $ "c input url is not a string but: " <> show unsupported
 
 mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl :: (MonadFail m, MonadIO m) => FilePath -> [Text] -> m ()
 mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl flakeFile cmdArgsOverride =
@@ -200,6 +202,53 @@ mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl flakeFile cmdArgsOverride =
               (overMap <> argsFromFlake)
               (liftIO . putLBSLn . toLazyByteString . ( "--override-input c " <>) . (<> ".tar"))
 
+mergeCmdArgsIntoFlakeUrl :: (MonadFail m, MonadIO m) => FilePath -> [Text] -> m ()
+mergeCmdArgsIntoFlakeUrl flakeFile mergeArgs = do
+  doesFileExist flakeFile >>= \case
+    True -> updateFlakeFile
+    False -> do
+      absFf <- makeAbsolute flakeFile
+      fail $ "Flake file [" <> absFf <> "] does not exist"
+  where
+    updateFlakeFile = do
+      flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
+      case flakeInputUrlFromText flakeFileContent of
+        Left e -> fail e
+        Right url ->
+          case decodePath . extractPath $ encodeUtf8 url of
+            (pathSegs, _qa) ->
+              let
+                NixDer bindings = translate @PlainNix pathSegs
+                argsFromFlake :: Map AtrName Text = M.mapKeys AtrName $ M.fromList bindings
+              in do
+                cmdArgsMap <- M.mapKeys argToAtr <$> parsePath mergeArgs
+                withUrl
+                  (cmdArgsMap <> argsFromFlake)
+                  (\b ->
+                     case insertLfiIntoFlakeBody flakeFileContent b of
+                       Left e -> fail e
+                       Right flakeFileContent' -> writeFileText flakeFile flakeFileContent')
+
+insertLfiIntoFlakeBody :: Text -> Builder -> Either String Text
+insertLfiIntoFlakeBody flakeFileContent url =
+  case parseNixTextLoc flakeFileContent of
+    Left e -> fail $ "Failed to parse flake due: " <> show e
+    Right ast ->
+      case inputsUrlCBinding ast of
+        Nothing ->
+          case inputsFirstBindingPos ast of
+            Nothing -> fail "Flake does not have inputs"
+            Just inputsPos ->
+              pure $ insertInputC
+                (renderInputsEntry (snd inputsPos) (decodeUtf8 $ toLazyByteString url))
+                (fst inputsPos)
+                flakeFileContent
+        Just oldUrl ->
+          pure $ insertUrlCInput
+            oldUrl
+            (mkConst (NURI (decodeUtf8 $ toLazyByteString url)))
+            flakeFileContent
+
 insertLfiIntoFlake :: (MonadFail m, MonadIO m) => FilePath -> Builder -> m ()
 insertLfiIntoFlake flakeFile url =
   doesFileExist flakeFile >>= \case
@@ -209,23 +258,7 @@ insertLfiIntoFlake flakeFile url =
       fail $ "Flake file [" <> absFf <> "] does not exist"
   where
     updateFlakeFile = do
-      flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
-      case parseNixTextLoc flakeFileContent of
-        Left e -> fail $ "Failed to parse " <> flakeFile <> " due" <> show e
-        Right ast ->
-          case inputsUrlCBinding ast of
-            Nothing ->
-              case inputsFirstBindingPos ast of
-                Nothing -> fail $ "Flake ["  <> flakeFile <> "] does not have inputs"
-                Just inputsPos ->
-                  writeFileText flakeFile $
-                    insertInputC
-                      (renderInputsEntry (snd inputsPos) (decodeUtf8 $ toLazyByteString url))
-                      (fst inputsPos)
-                      flakeFileContent
-            Just oldUrl ->
-              writeFileText flakeFile $
-                insertUrlCInput
-                  oldUrl
-                  (mkConst (NURI (decodeUtf8 $ toLazyByteString url)))
-                  flakeFileContent
+      flakeFileContent <- decodeUtf8 <$> readFileBS flakeFile
+      case insertLfiIntoFlakeBody flakeFileContent url of
+        Left e -> fail e
+        Right flakeFileContent' -> writeFileText flakeFile flakeFileContent'
