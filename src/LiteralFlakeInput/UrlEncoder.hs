@@ -1,30 +1,36 @@
 {-# LANGUAGE MultilineStrings #-}
 module LiteralFlakeInput.UrlEncoder where
-import Data.Binary.Builder -- (fromByteString, toLazyByteString)
+import Data.Binary.Builder
+    ( Builder, toLazyByteString, fromByteString )
 import Data.List.NonEmpty qualified as NL
 import Data.Map.Strict qualified as M
 import Data.Text qualified as T
 import Data.Time.Clock ( getCurrentTime )
 import Data.Version (showVersion)
 import LiteralFlakeInput.Nix
-    -- ( quoteUnquotedString,
-    --   inputsFirstBindingPos,
-    --   insertInputC,
-    --   renderInputsEntry )
+    ( quoteUnquotedString,
+      inputsFirstBindingPos,
+      insertInputC,
+      renderInputsEntry,
+      inputsUrlCBinding,
+      insertUrlCInput )
 import LiteralFlakeInput.Prelude
 import Network.HTTP.Types (encodePathSegments)
 import Nix
-    -- ( nixEvalExprLoc,
-    --   normalForm,
-    --   defaultOptions,
-    --   parseNixTextLoc,
-    --   Options )
-import Nix.Atoms
+    ( mkConst,
+      nixEvalExprLoc,
+      normalForm,
+      defaultOptions,
+      parseNixTextLoc,
+      Options )
+import Nix.Atoms ( NAtom(NURI) )
 import Nix.Standard ( runWithBasicEffectsIO )
 import Paths_literal_flake_input ( version )
 import System.Environment.Blank (getEnvDefault)
 import Text.PrettyPrint.Leijen.Text (linebreak, text, putDoc, vcat, indent)
 import Text.Regex.TDFA ( (=~) )
+import UnliftIO.Directory ( doesFileExist, makeAbsolute )
+
 
 runUrlEncoder :: IO ()
 runUrlEncoder = runUrlEncoderWith . fmap toText =<< getArgs
@@ -138,25 +144,31 @@ mkLfiUrl siteRoot w =
    flatpairs ((AtrName an, av):t) = an : av : flatpairs t
 
 insertLfiIntoFlake :: (MonadFail m, MonadIO m) => FilePath -> Builder -> m ()
-insertLfiIntoFlake flakeFile url = do
-  flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
-  case parseNixTextLoc flakeFileContent of
-    Left e -> fail $ "Failed to parse " <> flakeFile <> " due" <> show e
-    Right ast ->
-      case inputsUrlCBinding ast of
-        Nothing -> -- init
-          case inputsFirstBindingPos ast of
-            Nothing -> fail $ "Flake ["  <> flakeFile <> "] does not have inputs"
-            Just inputsPos -> do
-              putStrLn $ "POS " <> show inputsPos
+insertLfiIntoFlake flakeFile url =
+  doesFileExist flakeFile >>= \case
+    True -> updateFlakeFile
+    False -> do
+      absFf <- makeAbsolute flakeFile
+      fail $ "Flake file [" <> absFf <> "] does not exist"
+  where
+    updateFlakeFile = do
+      flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
+      case parseNixTextLoc flakeFileContent of
+        Left e -> fail $ "Failed to parse " <> flakeFile <> " due" <> show e
+        Right ast ->
+          case inputsUrlCBinding ast of
+            Nothing ->
+              case inputsFirstBindingPos ast of
+                Nothing -> fail $ "Flake ["  <> flakeFile <> "] does not have inputs"
+                Just inputsPos ->
+                  writeFileText flakeFile $
+                    insertInputC
+                      (renderInputsEntry (snd inputsPos) (decodeUtf8 $ toLazyByteString url))
+                      (fst inputsPos)
+                      flakeFileContent
+            Just oldUrl ->
               writeFileText flakeFile $
-                insertInputC
-                  (renderInputsEntry (snd inputsPos) (decodeUtf8 $ toLazyByteString url))
-                  (fst inputsPos)
+                insertUrlCInput
+                  oldUrl
+                  (mkConst (NURI (decodeUtf8 $ toLazyByteString url)))
                   flakeFileContent
-        Just oldUrl ->
-          writeFileText flakeFile $
-            insertUrlCInput
-              oldUrl
-              (mkConst (NURI (decodeUtf8 $ toLazyByteString url)))
-              flakeFileContent

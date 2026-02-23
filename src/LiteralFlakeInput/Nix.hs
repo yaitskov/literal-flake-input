@@ -4,7 +4,14 @@ module LiteralFlakeInput.Nix where
 import Prettyprinter ( indent, line )
 import Data.Text.Lazy ( concat )
 import Data.Text.Zipper
-       --( getText, insertMany, moveCursor, textZipper )
+    ( TextZipper,
+      getText,
+      insertMany,
+      moveCursor,
+      textZipper,
+      cursorPosition,
+      deleteChar,
+      moveRight )
 import Codec.Archive.Tar ( write )
 import Codec.Archive.Tar.Entry ( fileEntry, toTarPath, TarPath )
 import LiteralFlakeInput.Prelude hiding (concat)
