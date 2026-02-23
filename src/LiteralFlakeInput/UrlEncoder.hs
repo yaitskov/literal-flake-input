@@ -8,21 +8,10 @@ import Data.Text qualified as T
 import Data.Time.Clock ( getCurrentTime )
 import Data.Version (showVersion)
 import LiteralFlakeInput.Nix
-    ( quoteUnquotedString,
-      inputsFirstBindingPos,
-      insertInputC,
-      renderInputsEntry,
-      inputsUrlCBinding,
-      insertUrlCInput )
 import LiteralFlakeInput.Prelude
-import Network.HTTP.Types (encodePathSegments)
+import Network.HTTP.Types
+    ( decodePath, encodePathSegments, extractPath )
 import Nix
-    ( mkConst,
-      nixEvalExprLoc,
-      normalForm,
-      defaultOptions,
-      parseNixTextLoc,
-      Options )
 import Nix.Atoms ( NAtom(NURI) )
 import Nix.Standard ( runWithBasicEffectsIO )
 import Paths_literal_flake_input ( version )
@@ -30,7 +19,6 @@ import System.Environment.Blank (getEnvDefault)
 import Text.PrettyPrint.Leijen.Text (linebreak, text, putDoc, vcat, indent)
 import Text.Regex.TDFA ( (=~) )
 import UnliftIO.Directory ( doesFileExist, makeAbsolute )
-
 
 runUrlEncoder :: IO ()
 runUrlEncoder = runUrlEncoderWith . fmap toText =<< getArgs
@@ -67,6 +55,8 @@ runUrlEncoderWith args
   | otherwise =
     case args of
       ("i":initArgs) -> withUrl initArgs (insertLfiIntoFlake "./flake.nix")
+      ("p":printArgsOverride) -> prettyPrintLfi "./flake.nix" printArgsOverride
+      -- ("m":mergeArgs) -> merge with default url before doing init
       _ -> withUrl args (putLBSLn . toLazyByteString . ( "--override-input c " <>) . (<> ".tar"))
 
 withUrl :: [Text] -> (Builder -> IO ()) -> IO ()
@@ -142,6 +132,36 @@ mkLfiUrl siteRoot w =
    flatpairs :: [(AtrName, Text)] -> [Text]
    flatpairs [] = []
    flatpairs ((AtrName an, av):t) = an : av : flatpairs t
+
+prettyPrintLfi :: (MonadFail m, MonadIO m) => FilePath -> [Text] -> m ()
+prettyPrintLfi flakeFile _printArgsOverride =
+  doesFileExist flakeFile >>= \case
+    True -> handleFlakeFile
+    False -> do
+      absFf <- makeAbsolute flakeFile
+      fail $ "Flake file [" <> absFf <> "] does not exist"
+  where
+    printUrlAsAtrSet url =
+      case decodePath . extractPath $ encodeUtf8 url of
+        (pathSegs, _qa) ->
+          case parseNixTextLoc . toText . renderNixDer $ translate @PlainNix pathSegs of
+            Left e -> fail $ "Cannot parse attr set of url: " <> show e
+            Right atrs -> print $ prettyNix $ stripAnnotation atrs
+
+    handleFlakeFile = do
+      flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
+      case parseNixTextLoc flakeFileContent of
+        Left e -> fail $ "Failed to parse " <> flakeFile <> " due" <> show e
+        Right ast ->
+          case inputsUrlCBinding ast of
+            Nothing ->
+              fail $ "Flake file " <> flakeFile <> " does not have input [c] or url of the input is missing"
+            Just (Ann _ (NConstant (NURI curUr))) ->
+              printUrlAsAtrSet curUr
+            Just (Ann _ (NStr (DoubleQuoted [Plain curUr]))) ->
+              printUrlAsAtrSet curUr
+            Just (Ann _ unsupported) ->
+              fail $ "c input url is not a string but: " <> show unsupported
 
 insertLfiIntoFlake :: (MonadFail m, MonadIO m) => FilePath -> Builder -> m ()
 insertLfiIntoFlake flakeFile url =
