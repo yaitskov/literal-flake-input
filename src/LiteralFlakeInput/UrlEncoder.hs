@@ -183,6 +183,8 @@ flakeInputUrlFromText flakeContent =
           pure curUr
         Just (Ann _ (NStr (DoubleQuoted [Plain curUr]))) ->
           pure curUr
+        Just (Ann _ (NStr (Indented _ [Plain curUr]))) ->
+          pure curUr
         Just (Ann _ unsupported) ->
           fail $ "c input url is not a string but: " <> show unsupported
 

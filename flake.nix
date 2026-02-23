@@ -3,7 +3,7 @@
 {
   description = "Literal Flake Inputs";
   inputs = {
-    c = { url = https://lficom.me/job/null/name/%22dan%22/static/false; flake = false; };
+    c = { url = https://lficom.me/job/null/name/%22bob%22/static/false; flake = false; };
     nixpkgs.url = "github:NixOS/nixpkgs/bc16855ba53f3cb6851903a393e7073d1b5911e7";
     flake-utils.url = "github:numtide/flake-utils";
     uphack = {
