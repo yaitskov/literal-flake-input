@@ -15,6 +15,8 @@ import Nix
 import Nix.Atoms ( NAtom(NURI) )
 import Nix.Standard ( runWithBasicEffectsIO )
 import Paths_literal_flake_input ( version )
+import Prettyprinter (layoutSmart, defaultLayoutOptions, PageWidth (..), LayoutOptions (..))
+import Prettyprinter.Render.Text (renderStrict)
 import System.Environment.Blank (getEnvDefault)
 import Text.PrettyPrint.Leijen.Text (linebreak, text, putDoc, vcat, indent)
 import Text.Regex.TDFA ( (=~) )
@@ -149,6 +151,8 @@ prettyPrintLfi flakeFile printArgsOverride =
       absFf <- makeAbsolute flakeFile
       fail $ "Flake file [" <> absFf <> "] does not exist"
   where
+    layout =
+      layoutSmart defaultLayoutOptions { layoutPageWidth = AvailablePerLine 20 1 }
     printUrlAsAtrSet url = do
       overMap :: Map Text Text <-  M.mapKeys (unAtrName . argToAtr) <$> parsePath printArgsOverride
       case decodePath . extractPath $ encodeUtf8 url of
@@ -156,7 +160,7 @@ prettyPrintLfi flakeFile printArgsOverride =
           let NixDer bindings = translate @PlainNix pathSegs in
           case parseNixTextLoc . toText . renderNixDer . NixDer . M.toList $ overMap <> M.fromList bindings of
             Left e -> fail $ "Cannot parse attr set of url: " <> show e
-            Right atrs -> print $ prettyNix $ stripAnnotation atrs
+            Right atrs -> putTextLn . renderStrict . layout . prettyNix $ stripAnnotation atrs
 
     handleFlakeFile = do
       flakeFileContent :: Text <- decodeUtf8 <$> readFileBS flakeFile
