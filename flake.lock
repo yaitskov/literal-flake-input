@@ -3,13 +3,13 @@
     "c": {
       "flake": false,
       "locked": {
-        "narHash": "sha256-Cvi0DyrYnosgLTceG8emRL5j7D/C4weEAigf/rIbBpw=",
+        "narHash": "sha256-Wl11amvrTxGqwuYH/uzgPXlPqlnoSRTh9oOeObZ1eUQ=",
         "type": "file",
-        "url": "https://lficom.me/job/null/name/%22dan%22/static/false"
+        "url": "https://lficom.me/static/false"
       },
       "original": {
         "type": "file",
-        "url": "https://lficom.me/job/null/name/%22dan%22/static/false"
+        "url": "https://lficom.me/static/false"
       }
     },
     "flake-utils": {
