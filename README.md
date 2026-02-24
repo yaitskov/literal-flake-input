@@ -98,7 +98,7 @@ The above command is an equivalent of:
 
 ``` shell
 $ nix build --override-input c \
-    https://lficom.me/name/%22Bob%22/age/33.tar
+    https://lficom.me/name/%22Bob%22/age/33/.tar
 ```
 
 ## Flake template
