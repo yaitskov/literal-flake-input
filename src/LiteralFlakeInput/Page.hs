@@ -236,8 +236,8 @@ landing = do
               <a href="https://lficom.me">
                 Literal Flake Input
             <p>
-              Service translates an HTTP GET path into a nix derivation
-              that can be used as a flake input. Such a workaround provides
+              Service translates an HTTP GET path into a Nix attrset
+              that can be used as a non-flake input. Such a workaround provides
               the ability to emulate command line arguments in nix flakes.
             <pre class=wrap>
               wget -q -O - 'https://lficom.me/name/Alice Wonder/age/18/alive/true/job/null/'
@@ -278,6 +278,15 @@ landing = do
               values, then drop <i>.tar</i> suffix.
             <p>
               Alternative URL prefix can be set via environment variable <i>LFI_SITE</i>.
+            <p>
+              <b>e i</b> - init command can initialize default flake input URL just in a flake file.
+              So manuall URL handling is not need.
+            <p>
+              Use <b>e p</b> - to print Nix attrset isomophic to flake input URL.
+            <p>
+              <b>e m</b> versus from init updates only specified attributes in the flake input URL.
+            <p>
+              <b>e x</b> deletes specified attributes from the flake input URL.
 
             <center>
               <p>
