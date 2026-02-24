@@ -1,9 +1,8 @@
 # literal-flake-input
 
-There are a web service and a command line tool **e**.  The service
-translates an HTTP GET path into a Nix attrset that can be used as a
-non-flake input. Such a workaround provides the ability to emulate
-command line arguments in Nix flakes.
+The web service translates an HTTP GET path into a Nix attrset that
+can be used as a non-flake input. Such a workaround provides the
+ability to emulate command line arguments in Nix flakes.
 
 In addtition to the service there is a command line tool **e** that
 helps with encoding, updating and inspecting input URLs in flake
