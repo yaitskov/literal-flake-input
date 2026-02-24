@@ -28,87 +28,91 @@ runUrlEncoder :: IO ()
 runUrlEncoder = runUrlEncoderWith . fmap toText =<< getArgs
 
 runUrlEncoderWith :: [Text] -> IO ()
-runUrlEncoderWith args
-  | args `elem` [["--version"], ["-v"]] = do
+runUrlEncoderWith (cmd:args@(_:_))
+  | cmd `elem` ["i", "init"] = do
+      argsMap <- M.mapKeys argToAtr <$> parsePath args
+      withUrl argsMap (insertLfiIntoFlake curDirFlakeFile)
+  | cmd `elem` ["m", "merge"] = mergeCmdArgsIntoFlakeUrl curDirFlakeFile args
+  | cmd `elem` ["r", "x", "remove"] = removeAttrsFromFlakeInputUrl curDirFlakeFile args
+runUrlEncoderWith (cmd:args)
+  | cmd `elem` ["--version", "-v", "v"] = do
     putStrLn $ "Literal Flake Input " <> showVersion version
     exitFailure
-  | args `elem` [[], ["-h"], ["-help"], ["--help"], ["-help"], ["help"]] = do
-    putStrLn """Literal Flake Input (LFI) URL encoder
-      Usage: nix build $(e -an1 true \\
-                           -an2 null \\
-                           -an3 12 \\
-                           -an4 hello world \\
-                           -an5 [ 1 2 ] \\
-                           -an6 "{x = 1; y = 2; }" \\
-                           -an7 x: x + 1\\
-                           -an8 \\(1 + 2\\) )
+  | cmd  `elem` ["p", "print"] = prettyPrintLfi curDirFlakeFile args
+  | cmd `elem` ["-h", "-help", "--help", "help", "h"] = printHelp
+runUrlEncoderWith [] = printHelp
+runUrlEncoderWith args =
+  mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl curDirFlakeFile args
 
-      Mail purpose of "e" command is generating flake overriding input URL
-      out of arbitrary command line arguments.
+curDirFlakeFile :: FilePath
+curDirFlakeFile = "./flake.nix"
 
-      The result is a non-flake URL input:
-      nix build --override-input c https://lficom.me/an1/true/an2/null/an3/42/an4/%22hello%20world%22/an5/%5B%201%202%20%5D/an6/%7Bx%20=%201%3B%20y%20=%202%3B%20%7D/an7/a:%20a%20+%201/.tar
+printHelp :: MonadIO m => m ()
+printHelp = do
+  putStrLn """Literal Flake Input (LFI) URL encoder
+    Usage: nix build $(e -an1 true \\
+                         -an2 null \\
+                         -an3 12 \\
+                         -an4 hello world \\
+                         -an5 [ 1 2 ] \\
+                         -an6 "{x = 1; y = 2; }" \\
+                         -an7 x: x + 1\\
+                         -an8 \\(1 + 2\\) )
 
-      LFI web service responds with a Nix attribute set corresponding
-      to the URL path. Nix values are verified with hnix interpreter.
+    Mail purpose of "e" command is generating flake overriding input URL
+    out of arbitrary command line arguments.
 
-      URL prefix can be overriden via environment variable LFI_SITE.
+    The result is a non-flake URL input:
+    nix build --override-input c https://lficom.me/an1/true/an2/null/an3/42/an4/%22hello%20world%22/an5/%5B%201%202%20%5D/an6/%7Bx%20=%201%3B%20y%20=%202%3B%20%7D/an7/a:%20a%20+%201/.tar
 
-      If you copy the URL into a flake file as a default value URL then
-      drop ".tar" suffix, but it is easier to use auxiliary "e" commands
-      for handling literal flake input URLs in a flake file.
+    LFI web service responds with a Nix attribute set corresponding
+    to the URL path. Nix values are verified with hnix interpreter.
 
-      e p   - print attributes from an input URL in flake file
-              with overrides from command line arguments as
-              a pretty-printed Nix attrset.
+    URL prefix can be overriden via environment variable LFI_SITE.
 
-        $ e p -an1 true -an2 null -an3 12 -an4 hello world -an5 [ 1 2 ] \\
-              -an6 "{x = 1; y = 2; }" -an7 x: x + 1 -an8 \\(1 + 2\\)
-      { ... }:
-        {
-          an1 = true;
-          an2 = null;
-          an3 = 12;
-          an4 = "hello world";
-          an5 = [ 1 2 ];
-          an6 = {
-            x = 1;
-            y = 2;
-          };
-          an7 = x:
-            x + 1;
-          an8 = 1 + 2;
-          static = false;
-        }
+    If you copy the URL into a flake file as a default value URL then
+    drop ".tar" suffix, but it is easier to use auxiliary "e" commands
+    for handling literal flake input URLs in a flake file.
 
-      e x   - remove specified attributes from flake input URL
+    e p   - print attributes from an input URL in flake file
+            with overrides from command line arguments as
+            a pretty-printed Nix attrset.
 
-        $ e x an1 an4
+      $ e p -an1 true -an2 null -an3 12 -an4 hello world -an5 [ 1 2 ] \\
+            -an6 "{x = 1; y = 2; }" -an7 x: x + 1 -an8 \\(1 + 2\\)
+    { ... }:
+      {
+        an1 = true;
+        an2 = null;
+        an3 = 12;
+        an4 = "hello world";
+        an5 = [ 1 2 ];
+        an6 = {
+          x = 1;
+          y = 2;
+        };
+        an7 = x:
+          x + 1;
+        an8 = 1 + 2;
+        static = false;
+      }
 
-      e m   - merge attributes form command line arguments into
-              flake input URL in flake file
+    e x   - remove specified attributes from flake input URL
 
-        $ e m -an1 false
+      $ e x an1 an4
 
-      e i   - init - add new non-flake input to flake file or
-              completely override URL of flake input if it already exists.
+    e m   - merge attributes form command line arguments into
+            flake input URL in flake file
 
-        $ e i -an1 true
+      $ e m -an1 false
 
-      Project home page https://github.com/yaitskov/literal-flake-input"""
-    exitFailure
-  | otherwise =
-    case args of
-      ("i":initArgs@(_:_)) -> do
-         argsMap <- M.mapKeys argToAtr <$> parsePath initArgs
-         withUrl argsMap (insertLfiIntoFlake flakeFile)
-      ("p":printArgsOverride) -> prettyPrintLfi flakeFile printArgsOverride
-      ("m":mergeArgs@(_:_)) -> mergeCmdArgsIntoFlakeUrl flakeFile mergeArgs
-      ("x":attrsToRemove@(_:_)) -> removeAttrsFromFlakeInputUrl flakeFile attrsToRemove
-      _ -> mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl flakeFile args
-  where
-    flakeFile = "./flake.nix"
+    e i   - init - add new non-flake input to flake file or
+            completely override URL of flake input if it already exists.
 
+      $ e i -an1 true
+
+    Project home page https://github.com/yaitskov/literal-flake-input"""
+  exitFailure
 posixEpoch :: UTCTime
 posixEpoch = UTCTime d 0
   where
