@@ -249,7 +249,7 @@ mergeCmdArgsWithFlakeUrlArgsAndPrintAsUrl flakeFile cmdArgsOverride =
           in
             withUrl
               (overMap <> argsFromFlake)
-              (liftIO . putLBSLn . toLazyByteString . ( "--override-input c " <>) . (<> ".tar"))
+              (liftIO . putLBSLn . toLazyByteString . ( "--override-input c " <>) . (<> "/.tar"))
 
 removeAttrsFromFlakeInputUrl :: (MonadFail m, MonadIO m) => FilePath -> [Text] -> m ()
 removeAttrsFromFlakeInputUrl flakeFile attrsToRemove = do
