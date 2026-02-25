@@ -112,18 +112,11 @@
         inherit (pkgs.haskell.lib) dontHaddock dontCheck;
         haskellPackages = pkgs.haskell.packages.${ghcName}.extend(hnix-overlay);
       in {
-        # haskellProjects.default = {
-        #   packages = {
-        #     hnix.source = inputs.hnix;
-        #   };
-        # };
-        packages.${packageName} =
+        packages.default =
           if (import c { inherit pkgs; }).static then
             mkStatic packageName
           else
             dontHaddock (haskellPackages.callCabal2nix packageName self rec {});
-        packages.default = self.packages.${system}.${packageName};
-        defaultPackage = self.packages.${system}.default;
 
         devShells.default = pkgs.mkShell {
           buildInputs = [ haskellPackages.haskell-language-server ] ++ (with pkgs; [
@@ -139,8 +132,7 @@
             echo $(dirname $(dirname $(which ghc)))/share/doc > .haddock-ref
           '';
         };
-        devShell = self.devShells.${system}.default;
 
-        nixosModules.default = import ./nixos/flake-lfi.nix (self.packages.${system}.${packageName});
+        nixosModules.default = import ./nixos/flake-lfi.nix (self.packages.${system}.default);
       });
 }
