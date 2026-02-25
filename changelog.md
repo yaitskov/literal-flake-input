@@ -1,4 +1,4 @@
-# vpn-router changelog
+# literal-flake-input changelog
 
 ## Version 0.0.5 2026-02-24
   * Disable implicit string context with wrapping a command line
