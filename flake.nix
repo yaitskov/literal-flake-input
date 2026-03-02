@@ -111,11 +111,12 @@
         inherit (pkgs.haskell.lib) dontHaddock dontCheck;
         haskellPackages = pkgs.haskell.packages.${ghcName}.extend(hnix-overlay);
       in {
-        packages.default =
+        packages.${packageName} =
           if (import c { inherit pkgs; }).static then
             mkStatic packageName
           else
             dontHaddock (haskellPackages.callCabal2nix packageName self rec {});
+        packages.default = self.packages.${system}.${packageName};
 
         devShells.default = pkgs.mkShell {
           buildInputs = [ haskellPackages.haskell-language-server ] ++ (with pkgs; [
